@@ -1,9 +1,9 @@
 # OPAL Node-RED
 
-[![Build Status](https://travis-ci.org/parodotdev/orpa-node-red.svg?branch=master)](https://travis-ci.org/parodotdev/orpa-node-red)
+[![Build Status](https://travis-ci.org/telligro/orpa-node-red.svg?branch=master)](https://travis-ci.org/telligro/orpa-node-red)
 
 ## Getting started
-Refer to  [orpa-setup](https://github.com/parodotdev/orpa-setup) project for more details.
+Refer to  [orpa-setup](https://github.com/telligro/orpa-setup) project for more details.
 
 ## Development setup
 
@@ -20,7 +20,7 @@ mkdir <WORKING_DIR>
 * Execute the below from the working directory
 ```
 cd <WORKING_DIR>
-git clone https://github.com/parodotdev/orpa-node-red.git
+git clone https://github.com/telligro/orpa-node-red.git
 cd orpa-node-red
 npm install
 npm run build
@@ -31,7 +31,7 @@ npm run start
 ### Setup OPAL nodes
 ```
 cd <WORKING_DIR>
-git clone https://github.com/parodotdev/orpa-nodes.git
+git clone https://github.com/telligro/orpa-nodes.git
 ```
 #### Install the nodes
 ##### orpa-node-control-flow
