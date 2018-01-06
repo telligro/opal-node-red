@@ -34,87 +34,32 @@ cd <WORKING_DIR>
 git clone https://github.com/telligro/orpa-nodes.git
 ```
 #### Install the nodes
-##### orpa-node-control-flow
+##### Generic Node Installation
 ```
-cd <WORKING_DIR>/orpa-nodes/packages/orpa-node-control-flow
+cd <WORKING_DIR>/orpa-nodes/packages/<NODE_NAME>
 npm link
 ```
 * Assuming that the `orpa-node-red` in the same working directory as `orpa-nodes`
 ```
 cd <WORKING_DIR>/orpa-node-red
-npm link @torpadev/orpa-node-control-flow
+npm link @torpadev/<NODE_NAME>
 ```
-##### orpa-node-database
-```
-cd <WORKING_DIR>/orpa-nodes/packages/orpa-node-database
-npm link
-```
-* Assuming that the `orpa-node-red` in the same working directory as `orpa-nodes`
-```
-cd <WORKING_DIR>/orpa-node-red
-npm link @torpadev/orpa-node-database
-```
-##### orpa-node-email
-```
-cd <WORKING_DIR>/orpa-nodes/packages/orpa-node-email
-npm link
-```
-* Assuming that the `orpa-node-red` in the same working directory as `orpa-nodes`
-```
-cd <WORKING_DIR>/orpa-node-red
-npm link @torpadev/orpa-node-email
-```
-##### orpa-node-ftp
-```
-cd <WORKING_DIR>/orpa-nodes/packages/orpa-node-ftp
-npm link
-```
-* Assuming that the `orpa-node-red` in the same working directory as `orpa-nodes`
-```
-cd <WORKING_DIR>/orpa-node-red
-npm link @torpadev/orpa-node-ftp
-```
-##### orpa-node-msexcel
-```
-cd <WORKING_DIR>/orpa-nodes/packages/orpa-node-msexcel
-npm link
-```
-* Assuming that the `orpa-node-red` in the same working directory as `orpa-nodes`
-```
-cd <WORKING_DIR>/orpa-node-red
-npm link @torpadev/orpa-node-msexcel
-```
-##### orpa-node-selenium-webdriver
-```
-cd <WORKING_DIR>/orpa-nodes/packages/orpa-node-selenium-webdriver
-npm link
-```
-* Assuming that the `orpa-node-red` in the same working directory as `orpa-nodes`
-```
-cd <WORKING_DIR>/orpa-node-red
-npm link @torpadev/orpa-node-selenium-webdriver
-```
-##### orpa-node-soap
-```
-cd <WORKING_DIR>/orpa-nodes/packages/orpa-node-soap
-npm link
-```
-* Assuming that the `orpa-node-red` in the same working directory as `orpa-nodes`
-```
-cd <WORKING_DIR>/orpa-node-red
-npm link @torpadev/orpa-node-soap
-```
-## Developers
-
-
+The following nodes are available for OPAL
+* [orpa-node-control-flow](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-control-flow)
+* [orpa-node-database](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-database)
+* [orpa-node-email](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-email)
+* [orpa-node-ftp](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-ftp)
+* [orpa-node-msexcel](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-msexcel)
+* [orpa-node-selenium-webdriver](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-control-flow)
+* [orpa-node-soap](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-control-flow)
 ## Contributing
-
+Contact support@telligro.com
 ## Authors
 
-ORPA-Node-RED is a fork of Node-RED for the OPAL framework
+ORPA-Node-RED is a fork of Node-RED for the [OPAL Framework](https://www.telligro.com)
 
-The OPAL Node-RED fork is maintained by Telligro Pte Ltd  
-The OPAL Nodes are created and mantained by Telligro Pte Ltd
+The OPAL Node-RED fork is maintained by [Telligro Pte Ltd](https://www.telligro.com)  
+The OPAL Nodes are created and mantained by [Telligro Pte Ltd](https://www.telligro.com)
 
 Node-RED is a project of the [JS Foundation](http://js.foundation).
 
