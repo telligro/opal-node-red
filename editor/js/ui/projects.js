@@ -315,6 +315,7 @@ RED.projects = (function() {
                                 if (projectName === "" || projectName === autoInsertedName) {
                                     autoInsertedName = m[1];
                                     projectNameInput.val(autoInsertedName);
+                                    projectNameInput.change();
                                 }
                             }
                             validateForm();
@@ -396,12 +397,14 @@ RED.projects = (function() {
                                     projectData.copy = copyProject.name;
                                 } else if (projectType === 'clone') {
                                     // projectData.credentialSecret = projectSecretInput.val();
-                                    projectData.remote = {
-                                        // name: projectRepoRemoteName.val()||'origin',
-                                        // branch: projectRepoBranch.val()||'master',
-                                        url: projectRepoInput.val(),
-                                        username: projectRepoUserInput.val(),
-                                        password: projectRepoPasswordInput.val()
+                                    projectData.git = {
+                                        remotes: {
+                                            'origin': {
+                                                url: projectRepoInput.val(),
+                                                username: projectRepoUserInput.val(),
+                                                password: projectRepoPasswordInput.val()
+                                            }
+                                        }
                                     }
                                 }
 
@@ -411,6 +414,7 @@ RED.projects = (function() {
                                 sendRequest({
                                         url: "projects",
                                         type: "POST",
+                                        requireCleanWorkspace: true,
                                         handleAuthFail: false,
                                         responses: {
                                             200: function(data) {
@@ -422,6 +426,9 @@ RED.projects = (function() {
                                                 },
                                                 'git_error': function(error) {
                                                     console.log("git error",error);
+                                                },
+                                                'git_connection_failed': function(error) {
+                                                    projectRepoInput.addClass("input-error");
                                                 },
                                                 'git_auth_failed': function(error) {
                                                     projectRepoUserInput.addClass("input-error");
@@ -539,6 +546,7 @@ RED.projects = (function() {
         sendRequest({
             url: "projects/"+name,
             type: "PUT",
+            requireCleanWorkspace: true,
             responses: {
                 200: function(data) {
                     done(null,data);
@@ -626,7 +634,49 @@ RED.projects = (function() {
 
     function sendRequest(options,body) {
         // dialogBody.hide();
-        console.log(options.url);
+        console.log(options.url,body);
+
+        if (options.requireCleanWorkspace && RED.nodes.dirty()) {
+            var message = 'You have undeployed changes that will be lost. Do you want to continue?';
+            var alwaysCallback;
+            var cleanNotification = RED.notify(message,{
+                type:"info",
+                fixed: true,
+                modal: true,
+                buttons: [
+                    {
+                        //id: "node-dialog-delete",
+                        //class: 'leftButton',
+                        text: RED._("common.label.cancel"),
+                        click: function() {
+                            cleanNotification.close();
+                            if (options.cancel) {
+                                options.cancel();
+                            }
+                            if (alwaysCallback) {
+                                alwaysCallback();
+                            }
+                        }
+                    },{
+                        text: 'Continue',
+                        click: function() {
+                            cleanNotification.close();
+                            delete options.requireCleanWorkspace;
+                            sendRequest(options,body).always(function() {
+                                if (alwaysCallback) {
+                                    alwaysCallback();
+                                }
+
+                            })
+                        }
+                    }
+                ]
+            });
+            return {
+                always: function(done) { alwaysCallback = done; }
+            }
+        }
+
         var start = Date.now();
         // TODO: this is specific to the dialog-based requests
         $(".projects-dialog-spinner").show();
@@ -650,67 +700,66 @@ RED.projects = (function() {
                     resultCallbackArgs = {error:responses.statusText};
                     return;
                 } else if (options.handleAuthFail !== false && xhr.responseJSON.error === 'git_auth_failed') {
-                    var url = activeProject.remotes.origin.fetch;
+                    var url = activeProject.git.remotes.origin.fetch;
                     var message = $('<div>'+
                         '<div class="form-row">Authentication required for repository:</div>'+
                         '<div class="form-row"><div style="margin-left: 20px;">'+url+'</div></div>'+
                         '<div class="form-row"><label for="projects-user-auth-username">Username</label><input id="projects-user-auth-username" type="text"></input></div>'+
                         '<div class="form-row"><label for=projects-user-auth-password">Password</label><input id="projects-user-auth-password" type="password"></input></div>'+
-                        '<hr>'+
-                        '<div class="ui-dialog-buttonset">'+
-                            '<button>'+RED._("common.label.cancel")+'</button>'+
-                            '<button><i class="fa fa-refresh"></i> Retry</button>'+
-                        '</div>'+
                         '</div>');
-                    $(message.find('button')[0]).click(function(evt) {
-                        evt.preventDefault();
-                        notification.close();
-                    })
-                    $(message.find('button')[1]).click(function(evt) {
-                        evt.preventDefault();
-                        var username = $('#projects-user-auth-username').val();
-                        var password = $('#projects-user-auth-password').val();
-                        body = body || {};
-                        var done = function(err) {
-                            if (err) {
-                                console.log("Failed to update auth");
-                                console.log(err);
-                            } else {
-                                sendRequest(options,body);
-                                notification.close();
-                            }
-
-                        }
-                        sendRequest({
-                            url: "projects/"+activeProject.name,
-                            type: "PUT",
-                            responses: {
-                                0: function(error) {
-                                    done(error,null);
-                                },
-                                200: function(data) {
-                                    done(null,data);
-                                },
-                                400: {
-                                    'unexpected_error': function(error) {
-                                        done(error,null);
-                                    }
-                                },
-                            }
-                        },{
-                            remote: {
-                                origin: {
-                                    username: username,
-                                    password: password
-                                }
-                            }
-                        });
-
-                    })
                     var notification = RED.notify(message,{
                         type:"error",
                         fixed: true,
-                        modal: true
+                        modal: true,
+                        buttons: [
+                            {
+                                //id: "node-dialog-delete",
+                                //class: 'leftButton',
+                                text: RED._("common.label.cancel"),
+                                click: function() {
+                                    notification.close();
+                                }
+                            },{
+                                text: $('<span><i class="fa fa-refresh"></i> Retry</span>'),
+                                click: function() {
+                                    var username = $('#projects-user-auth-username').val();
+                                    var password = $('#projects-user-auth-password').val();
+                                    body = body || {};
+                                    var authBody = {git:{remotes:{}}};
+                                    authBody.git.remotes[options.remote||'origin'] = {
+                                        username: username,
+                                        password: password
+                                    };
+                                    var done = function(err) {
+                                        if (err) {
+                                            console.log("Failed to update auth");
+                                            console.log(err);
+                                        } else {
+                                            sendRequest(options,body);
+                                            notification.close();
+                                        }
+
+                                    }
+                                    sendRequest({
+                                        url: "projects/"+activeProject.name,
+                                        type: "PUT",
+                                        responses: {
+                                            0: function(error) {
+                                                done(error,null);
+                                            },
+                                            200: function(data) {
+                                                done(null,data);
+                                            },
+                                            400: {
+                                                'unexpected_error': function(error) {
+                                                    done(error,null);
+                                                }
+                                            },
+                                        }
+                                    },authBody);
+                                }
+                            }
+                        ]
                     });
                     return;
                 } else if (responses[xhr.responseJSON.error]) {
@@ -809,7 +858,17 @@ RED.projects = (function() {
             },
             filter: function(data) {
                 var isCreateEntry = (typeof data !=="string");
-                return (isCreateEntry && (branchFilterTerm !== "" && branches.indexOf(branchPrefix+branchFilterTerm) === -1) ) ||  (!isCreateEntry && data.indexOf(branchPrefix+branchFilterTerm) !== -1);
+                return (
+                            isCreateEntry &&
+                            (
+                                branchFilterTerm !== "" &&
+                                branches.indexOf(branchPrefix+branchFilterTerm) === -1
+                            )
+                     ) ||
+                     (
+                         !isCreateEntry &&
+                         data.indexOf(branchFilterTerm) !== -1
+                     );
             }
         });
         return {
@@ -824,16 +883,32 @@ RED.projects = (function() {
                 } else {
                     branchPrefix = "";
                 }
-                $.getJSON(url,function(result) {
-                    branches = result.branches;
-                    result.branches.forEach(function(b) {
-                        branchList.editableList('addItem',b);
-                    });
-                    branchList.editableList('addItem',{});
-                    setTimeout(function() {
-                        spinner.remove();
-                    },Math.max(300-(Date.now() - start),0));
-                });
+
+
+                sendRequest({
+                    url: url,
+                    type: "GET",
+                    responses: {
+                        0: function(error) {
+                            console.log(error);
+                        },
+                        200: function(result) {
+                            branches = result.branches;
+                            result.branches.forEach(function(b) {
+                                branchList.editableList('addItem',b);
+                            });
+                            branchList.editableList('addItem',{});
+                            setTimeout(function() {
+                                spinner.remove();
+                            },Math.max(300-(Date.now() - start),0));
+                        },
+                        400: {
+                            'unexpected_error': function(error) {
+                                console.log(error);
+                            }
+                        }
+                    }
+                })
             },
             addItem: function(data) { branchList.editableList('addItem',data) },
             filter: function() { branchList.editableList('filter') },
@@ -888,7 +963,6 @@ RED.projects = (function() {
         $.getJSON("projects",function(data) {
             if (data.active) {
                 $.getJSON("projects/"+data.active, function(project) {
-                    console.log(project.branches);
                     activeProject = project;
                     // updateProjectSummary();
                     // updateProjectDescription();
