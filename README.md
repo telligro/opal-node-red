@@ -14,11 +14,11 @@ Refer to  [orpa-setup](https://github.com/telligro/orpa-setup) project for more 
 **Note**: The development should be fine with nodejs versions 6,9 as well. Although, this is not actively tested.
 ### Setup orpa-node-red
 * Create a working directory for OPAL node-red & nodes
-```
+```sh
 mkdir <WORKING_DIR>
 ```
 * Execute the below from the working directory
-```
+```sh
 cd <WORKING_DIR>
 git clone https://github.com/telligro/orpa-node-red.git
 cd orpa-node-red
@@ -29,18 +29,18 @@ npm run build
 npm run start
 ```
 ### Setup OPAL nodes
-```
+```sh
 cd <WORKING_DIR>
 git clone https://github.com/telligro/orpa-nodes.git
 ```
 #### Install the nodes
 ##### Generic Node Installation
-```
+```sh
 cd <WORKING_DIR>/orpa-nodes/packages/<NODE_NAME>
 npm link
 ```
 * Assuming that the `orpa-node-red` in the same working directory as `orpa-nodes`
-```
+```sh
 cd <WORKING_DIR>/orpa-node-red
 npm link @torpadev/<NODE_NAME>
 ```
