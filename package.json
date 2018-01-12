@@ -1,6 +1,6 @@
 {
     "name": "@torpadev/orpa-node-red",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "description": "A node-red wrapper for RPA",
     "homepage": "https://github.com/parodot/node-red",
     "license": "GPL-3.0",
