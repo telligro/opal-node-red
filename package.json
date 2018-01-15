@@ -2,11 +2,11 @@
     "name": "@torpadev/orpa-node-red",
     "version": "0.2.1",
     "description": "A node-red wrapper for RPA",
-    "homepage": "https://github.com/parodot/node-red",
+    "homepage": "https://github.com/telligro/orpa-node-red",
     "license": "GPL-3.0",
     "repository": {
         "type": "git",
-        "url": "https://github.com/parodot/node-red.git"
+        "url": "https://github.com/telligro/node-red.git"
     },
     "main": "red/red.js",
     "scripts": {
