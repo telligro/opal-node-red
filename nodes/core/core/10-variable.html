@@ -1,0 +1,37 @@
+<script type="text/javascript">
+    RED.nodes.registerType('set-variable',{
+        category: 'function',
+        color: '#a6bbcf',
+        defaults: {
+            payload: {value:""},
+            payloadType: {value: "variable"}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "file.png",
+        label: function() {
+            return this.payload||"set-variable";
+        },
+        oneditprepare: function() {
+          $("#node-input-payloadType").val(this.payloadType);
+          $("#node-input-payload").typedInput({
+              default: 'variable',
+              typeField: $("#node-input-payloadType"),
+              types:['variable']
+          });
+          $("#node-input-payload").typedInput('type',this.payloadType);
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="set-variable">
+    <div class="form-row">
+        <label for="node-input-payload"><i class="fa fa-envelope"></i> <span data-i18n="Input"></span></label>
+        <input type="text" id="node-input-payload" style="width:70%">
+        <input type="hidden" id="node-input-payloadType">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="set-variable">
+    <p>A simple node to set values to variables. Passes msg.payload into given variable</p>
+</script>

@@ -1,0 +1,30 @@
+{
+    "LineCount.excludes": [
+        "**/.vscode/**",
+        "**/node_modules/**",
+        "**/test/**",
+        "**/vendor/**",
+        "**/public/**",
+        "**/locales/**",
+        "**/*package.json",
+        "**/*lock.json",
+        "**/*lerna.json",
+        "**/*LICENSE*",
+        "**/*.md",
+        "**/count/**",
+        "**/*.log",
+        "**/*.png",
+        "**/*.ico",
+        "**/.*",
+        "**/.*.*"
+    ],
+    "LineCount.output": {
+        "txt": true,
+        "json": true,
+        "csv": true,
+        "md": true,
+        "outdir": "out"
+    },
+    "LineCount.sort":"code",
+    "LineCount.order":"desc"    
+}
