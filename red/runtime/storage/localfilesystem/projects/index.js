@@ -350,6 +350,7 @@ function getFlows() {
 }
 
 function getVariables() {
+    console.log('Getting Variables');
     var project = getActiveProject();
     let projectName = project.name;
     var projectPath = fspath.join(projectsDir,projectName);
@@ -361,6 +362,7 @@ function getVariables() {
 }
 
 function saveVariables(variables) {
+    console.log('Saving Variables');
     var project = getActiveProject();
     let projectName = project.name;
     if (settings.readOnly) {
