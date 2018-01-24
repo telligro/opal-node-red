@@ -1,6 +1,6 @@
 {
     "name": "@torpadev/orpa-node-red",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "description": "A node-red wrapper for RPA",
     "homepage": "https://github.com/telligro/orpa-node-red",
     "license": "GPL-3.0",
