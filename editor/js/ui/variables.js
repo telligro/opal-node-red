@@ -161,6 +161,7 @@ RED.variables = (function() {
                     refreshVariableList();
                     RED.notify("Variable removed Successfully");
                   }).fail(function(err) {
+                    console.log('err', err);
                     RED.notify("Updating variable file failed!");
                   });
                 });

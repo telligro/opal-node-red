@@ -49,6 +49,37 @@ module.exports = {
             })
         });
 
+        app.get("/variables", function (req, res) {
+            runtime.storage.projects.getVariables().then(function (list) {
+                var response = {
+                    variables: list
+                };
+                res.json(response);
+            }).catch(function (err) {
+                console.log(err.stack);
+                if (err.code) {
+                    res.status(400).json({ error: err.code, message: err.message });
+                } else {
+                    res.status(400).json({ error: "unexpected_error", message: err.toString() });
+                }
+            })
+        })
+
+        app.post("/variables", function (req, res) {
+            var variables = req.body.variables;
+            if (variables == undefined) { variables = [] };
+            runtime.storage.projects.saveVariables(variables).then(function () {
+                res.json({ status: 1 });
+            }).catch(function (err) {
+                if (err.code) {
+                    res.status(400).json({ error: err.code, message: err.message });
+                } else {
+                    res.status(400).json({ error: "unexpected_error", message: err.toString() });
+                }
+            })
+
+        });
+
         // Create project
         app.post("/", needsPermission("projects.write"), function(req,res) {
             runtime.storage.projects.createProject(req.user, req.body).then(function(data) {

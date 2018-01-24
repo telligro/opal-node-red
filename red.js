@@ -341,10 +341,10 @@ process.on('SIGINT', function () {
 // if (process.argv[2] !== undefined && process.argv[2] === '--snitch') {
 // console.log('Snitch Mode enabled');
 process
-    .on('unhandledRejection', (reason, p) => {
-        console.error(reason, ' Report this: Unhandled Rejection at Promise ', p);
-        RED.comms.publish('notification/runtime-state', { type: "error", text: RED.log._("runtime.uncaughtException", { errorSrc: errorModule }), error: "runtime-error-uncaughtException" }, true);
-    })
+    // .on('unhandledRejection', (reason, p) => {
+    //     console.error(reason, ' Report this: Unhandled Rejection at Promise ', p);
+    //     RED.comms.publish('notification/runtime-state', { type: "error", text: RED.log._("runtime.uncaughtException", { errorSrc: 'unknown' }), error: "runtime-error-uncaughtException" }, true);
+    // })
     .on('uncaughtException', err => {
         console.error(err, ' Report this: Uncaught Exception thrown ');
         var errorModule = err.stack;
