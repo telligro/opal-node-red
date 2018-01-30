@@ -3,15 +3,28 @@
 [![Build Status](https://travis-ci.org/telligro/orpa-node-red.svg?branch=master)](https://travis-ci.org/telligro/orpa-node-red)
 
 ## Getting started
-Refer to  [orpa-setup](https://github.com/telligro/orpa-setup) project for more details.
+This readme is for setting up the development environment.
+Refer to  [orpa-setup](https://github.com/telligro/orpa-setup) project for getting started instructions.
 
 ## Development setup
 
 ### Requirements
 **node**: v8.9.x LTS  
 **npm**: 5.5.1
+**Git**: 1.8+
 
-**Note**: The development should be fine with nodejs versions 6,9 as well. Although, this is not actively tested.
+**Notes**: 
+The current release requires Git to be available on your environment path. Please refer to the Git Setup section.
+The development should be fine with nodejs versions 6,9 as well. Although, this is not actively tested.
+#### Git Setup
+
+For instructioons on setting up git on (Windows/Linux/Mac OSX) refer to link below    
+[Installing Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+
+On Windows, you can use a portable version of git available from
+https://git-scm.com/download/win  
+If portable git used ensure that git.exe is available on your path.
+
 ### Setup orpa-node-red
 * Create a working directory for OPAL node-red & nodes
 ```sh
