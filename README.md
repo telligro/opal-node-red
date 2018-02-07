@@ -1,6 +1,6 @@
 # OPAL Node-RED
 
-[![Build Status](https://travis-ci.org/telligro/orpa-node-red.svg?branch=master)](https://travis-ci.org/telligro/orpa-node-red)
+[![Build Status](https://travis-ci.org/telligro/orpa-node-red.svg?branch=master)](https://travis-ci.org/telligro/orpa-node-red) [![npm (scoped)](https://img.shields.io/npm/v/@torpadev/orpa-node-red.svg)](https://www.npmjs.com/package/@torpadev/orpa-node-red)
 
 ## Getting started
 This readme is for setting up the development environment.
