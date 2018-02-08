@@ -18,7 +18,7 @@ The current release requires Git to be available on your environment path. Pleas
 The development should be fine with nodejs versions 6,9 as well. Although, this is not actively tested.
 #### Git Setup
 
-For instructioons on setting up git on (Windows/Linux/Mac OSX) refer to link below    
+For instructions on setting up git on (Windows/Linux/Mac OSX) refer to link below    
 [Installing Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
 On Windows, you can use a portable version of git available from
