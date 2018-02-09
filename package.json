@@ -1,8 +1,8 @@
 {
-    "name": "@torpadev/orpa-node-red",
+    "name": "@telligro/opal-node-red",
     "version": "0.2.3",
     "description": "A node-red wrapper for RPA",
-    "homepage": "https://github.com/telligro/orpa-node-red",
+    "homepage": "https://github.com/telligro/opal-node-red",
     "license": "GPL-3.0",
     "repository": {
         "type": "git",
@@ -18,7 +18,7 @@
         "node-red": "./red.js",
         "node-red-pi": "bin/node-red-pi"
     },
-    "orpa": {
+    "opal": {
         "nodeRedVersion": "0.17.5"
     },
     "contributors": [
