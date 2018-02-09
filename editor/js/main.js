@@ -279,7 +279,7 @@
             label: RED.settings.theme("menu.menu-item-help.label",RED._("menu.label.help")),
             href: RED.settings.theme("menu.menu-item-help.url","http://nodered.org/docs")
         });
-        menuOptions.push({id:"menu-item-node-red-version", label:"v"+RED.settings.orpaVersion, onselect: "core:show-about" });
+        menuOptions.push({id:"menu-item-node-red-version", label:"v"+RED.settings.opalVersion, onselect: "core:show-about" });
 
 
         RED.view.init();

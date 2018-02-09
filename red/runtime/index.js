@@ -56,7 +56,7 @@ var nodeApp;
 
 function init(userSettings,_adminApi) {
     userSettings.version = getVersion();
-    userSettings.orpaVersion = getOrpaVersion();
+    userSettings.opalVersion = getopalVersion();
     log.init(userSettings);
     settings.init(userSettings);
 
@@ -69,24 +69,24 @@ function init(userSettings,_adminApi) {
 }
 
 var version;
-var orpaVersion;
-function getOrpaVersion(){
-    if (!orpaVersion) {
-        orpaVersion = require(path.join(__dirname, "..", "..", "package.json")).version;
+var opalVersion;
+function getopalVersion(){
+    if (!opalVersion) {
+        opalVersion = require(path.join(__dirname, "..", "..", "package.json")).version;
         /* istanbul ignore else */
         try {
             fs.statSync(path.join(__dirname,"..","..",".git"));
-            orpaVersion += "-git";
+            opalVersion += "-git";
         } catch(err) {
             // No git directory
         }
     }
-    return orpaVersion;
+    return opalVersion;
 }
 function getVersion() {
     if (!version) {
-        version = require(path.join(__dirname, "..", "..", "package.json")).orpa.nodeRedVersion;
-        // orpaVersion = require(path.join(__dirname, "..", "..", "package.json")).orpa.version;
+        version = require(path.join(__dirname, "..", "..", "package.json")).opal.nodeRedVersion;
+        // opalVersion = require(path.join(__dirname, "..", "..", "package.json")).opal.version;
         /* istanbul ignore else */
         // try {
         //     fs.statSync(path.join(__dirname,"..","..",".git"));
@@ -114,11 +114,11 @@ function start() {
             }
             log.info("\n\n"+log._("runtime.welcome")+"\n===================\n");
             if (settings.version) {
-                log.info(log._("runtime.version", { component: "ORPA-Node-RED", version: "v" + settings.orpaVersion }));
+                log.info("\n\n===============================================================\n"
+                    + "This is a customized version of Node-RED for the OPAL Framework"
+                    + "\n===============================================================\n");
+                log.info(log._("runtime.version", { component: "OPAL-Node-RED", version: "v" + settings.opalVersion }));
                 log.info(log._("runtime.version",{component:"Node-RED",version:"v"+settings.version}));
-                log.info("\n\n===============================================================\n" 
-                 + "This is a customized version of Node-RED for the OPAL Framework" 
-                + "\n===============================================================\n");
             }
             log.info(log._("runtime.version",{component:"Node.js ",version:process.version}));
             if (settings.UNSUPPORTED_VERSION) {

@@ -1,12 +1,9 @@
 # OPAL Node-RED
 
-[![Build Status](https://travis-ci.org/telligro/orpa-node-red.svg?branch=master)](https://travis-ci.org/telligro/orpa-node-red) [![npm (scoped)](https://img.shields.io/npm/v/@torpadev/orpa-node-red.svg)](https://www.npmjs.com/package/@torpadev/orpa-node-red) [![license](https://img.shields.io/github/license/telligro/orpa-setup.svg)](LICENSE)
-
-#### **Note:** All instances of *ORPA* will be renamed to *OPAL* in the upcoming update. Current version will remain accessible.
-
+[![Build Status](https://travis-ci.org/telligro/opal-node-red.svg?branch=master)](https://travis-ci.org/telligro/opal-node-red) [![npm (scoped)](https://img.shields.io/npm/v/@telligro/opal-node-red.svg)](https://www.npmjs.com/package/@telligro/opal-node-red) [![license](https://img.shields.io/github/license/telligro/opal-setup.svg)](LICENSE)
 ## Getting started
 This readme is for setting up the development environment.
-Refer to  [orpa-setup](https://github.com/telligro/orpa-setup) project for getting started instructions.
+Refer to  [opal-setup](https://github.com/telligro/opal-setup) project for getting started instructions.
 
 ## Development setup
 
@@ -27,7 +24,7 @@ On Windows, you can use a portable version of git available from
 https://git-scm.com/download/win  
 If portable git used ensure that git.exe is available on your path.
 
-### Setup orpa-node-red
+### Setup opal-node-red
 * Create a working directory for OPAL node-red & nodes
 ```sh
 mkdir <WORKING_DIR>
@@ -35,8 +32,8 @@ mkdir <WORKING_DIR>
 * Execute the below from the working directory
 ```sh
 cd <WORKING_DIR>
-git clone https://github.com/telligro/orpa-node-red.git
-cd orpa-node-red
+git clone https://github.com/telligro/opal-node-red.git
+cd opal-node-red
 npm install
 npm run build
 # Install any required OPAL nodes as shown in the setup  
@@ -46,32 +43,32 @@ npm run start
 ### Setup OPAL nodes
 ```sh
 cd <WORKING_DIR>
-git clone https://github.com/telligro/orpa-nodes.git
+git clone https://github.com/telligro/opal-nodes.git
 ```
 #### Install the nodes
 ##### Generic Node Installation
 ```sh
-cd <WORKING_DIR>/orpa-nodes/packages/<NODE_NAME>
+cd <WORKING_DIR>/opal-nodes/packages/<NODE_NAME>
 npm link
 ```
-* Assuming that the `orpa-node-red` in the same working directory as `orpa-nodes`
+* Assuming that the `opal-node-red` in the same working directory as `opal-nodes`
 ```sh
-cd <WORKING_DIR>/orpa-node-red
-npm link @torpadev/<NODE_NAME>
+cd <WORKING_DIR>/opal-node-red
+npm link @telligro/<NODE_NAME>
 ```
 The following nodes are available for OPAL
-* [orpa-node-control-flow](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-control-flow)
-* [orpa-node-database](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-database)
-* [orpa-node-email](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-email)
-* [orpa-node-ftp](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-ftp)
-* [orpa-node-msexcel](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-msexcel)
-* [orpa-node-selenium-webdriver](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-control-flow)
-* [orpa-node-soap](https://github.com/telligro/orpa-nodes/tree/master/packages/orpa-node-control-flow)
+* [opal-node-control-flow](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-control-flow)
+* [opal-node-database](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-database)
+* [opal-node-email](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-email)
+* [opal-node-ftp](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-ftp)
+* [opal-node-msexcel](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-msexcel)
+* [opal-node-selenium-webdriver](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-control-flow)
+* [opal-node-soap](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-control-flow)
 ## Contributing
 Contact support@telligro.com
 ## Authors
 
-ORPA-Node-RED is a fork of Node-RED for the [OPAL Framework](https://www.telligro.com)
+OPAL-Node-RED is a fork of Node-RED for the [OPAL Framework](https://www.telligro.com)
 
 The OPAL Node-RED fork is maintained by [Telligro Pte Ltd](https://www.telligro.com)  
 The OPAL Nodes are created and mantained by [Telligro Pte Ltd](https://www.telligro.com)
