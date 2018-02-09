@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/telligro/orpa-node-red.svg?branch=master)](https://travis-ci.org/telligro/orpa-node-red) [![npm (scoped)](https://img.shields.io/npm/v/@torpadev/orpa-node-red.svg)](https://www.npmjs.com/package/@torpadev/orpa-node-red) [![license](https://img.shields.io/github/license/telligro/orpa-setup.svg)](LICENSE)
 
+#### **Note:** All instances of *ORPA* will be renamed to *OPAL* in the upcoming update. Current version will remain accessible.
+
 ## Getting started
 This readme is for setting up the development environment.
 Refer to  [orpa-setup](https://github.com/telligro/orpa-setup) project for getting started instructions.
