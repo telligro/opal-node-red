@@ -353,6 +353,10 @@ function getVariables() {
     console.log('Getting Variables');
     var project = getActiveProject();
     let projectName = project.name;
+    console.log('Getting Variables', projectsDir, projectName);
+    if (projectName===undefined){
+        return when.reject(new Error("Project Name not available"));
+    }
     var projectPath = fspath.join(projectsDir,projectName);
     var variableFile = fspath.join(projectPath,"variables.json");
     return fs.readFile(variableFile,"utf8").then(function(content) {
