@@ -56,7 +56,7 @@ module.exports = {
                 };
                 res.json(response);
             }).catch(function (err) {
-                console.log(err.stack);
+                // console.log(err.stack);
                 if (err.code) {
                     res.status(400).json({ error: err.code, message: err.message });
                 } else {

@@ -316,6 +316,10 @@ RED.start().then(function() {
 });
 
 process.on('uncaughtException',function(err) {
+    util.log('[warn]', err.code);
+    if (err.code == 'EADDRINUSE' && JSON.stringify(err.stack).indexOf(9010)!=-1){
+        return;
+    }
     util.log('[red] Uncaught Exception:');
     if (err.stack) {
         util.log(err.stack);
@@ -346,7 +350,7 @@ process
     //     RED.comms.publish('notification/runtime-state', { type: "error", text: RED.log._("runtime.uncaughtException", { errorSrc: 'unknown' }), error: "runtime-error-uncaughtException" }, true);
     // })
     .on('uncaughtException', err => {
-        console.error(err, ' Report this: Uncaught Exception thrown ');
+        // console.error(err, ' Report this: Uncaught Exception thrown ');
         var errorModule = err.stack;
         try {
             errorModule = errParser.parse(err)[0].source;
