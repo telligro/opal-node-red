@@ -95,6 +95,10 @@
         "args": "",
         "desc": "0以上、1未満の疑似乱数を返します。"
     },
+    "$millis": {
+        "args": "",
+        "desc": "Unixエポック(1 January, 1970 UTC)からの経過ミリ秒を数値として返します。評価対象式に含まれる `$millis()` の呼び出しは、全て同じ値を返します。"
+    },
     "$sum": {
         "args": "array",
         "desc": "数値の配列 `array` の合計値を返します。 `array` が数値でない要素を含む場合、エラーになります。"
@@ -159,6 +163,10 @@
         "args": "object",
         "desc": "key/valueのペアを持つオブジェクトを、各要素が1つのkey/valueのペアを持つオブジェクトの配列に分割します。引数がオブジェクトの配列の場合、結果の配列は各オブジェクトから得た各key/valueのペアのオブジェクトを持ちます。"
     },
+    "$merge": {
+        "args": "array&lt;object&gt;",
+        "desc": "`object` の配列を1つの `object` へマージします。 マージ結果のオブジェクトは入力配列内の各オブジェクトのkey/valueペアを含みます。入力のオブジェクトが同じキーを持つ場合、戻り値の `object` には配列の最後のオブジェクトのkey/value値が格納されます。入力の配列がオブジェクトでない要素を含む場合、エラーとなります。"
+    },
     "$sift": {
         "args": "object, function",
         "desc": "引数 `object` が持つkey/valueのペアのうち、関数 `function` によってふるい分けたオブジェクトのみを返します。\n\n関数 `function` は、以下の引数を持つ必要があります。\n\n`function(value [, key [, object]])`"
@@ -186,5 +194,25 @@
     "$globalContext": {
         "args": "string",
         "desc": "グローバルコンテキストのプロパティを取得します。"
+    },
+    "$pad": {
+        "args": "string, width [, char]",
+        "desc": "文字数が引数 `width` の絶対値以上となるよう、必要に応じて追加文字を付け足した `string` のコピーを返します。\n\n`width` が正の値の場合、文字列の右側に追加文字を付け足します。もし負の値の場合、文字列の左側に追加文字を付け足します。\n\n任意の引数 `char` には、本関数で用いる追加文字を指定します。もし追加文字を指定しない場合は、既定値として空白文字を使用します。"
+    },
+    "$fromMillis": {
+        "args": "number",
+        "desc": "Unixエポック(1 January, 1970 UTC)からの経過ミリ秒を表す数値を、ISO 8601形式のタイムスタンプの文字列に変換します。"
+    },
+    "$formatNumber": {
+        "args": "number, picture [, options]",
+        "desc": "`number` を文字列へ変換し、文字列 `picture` に指定した数値表現になるよう書式を変更します。\n\nこの関数の動作は、XPath F&O 3.1の仕様に定義されているXPath/XQuery関数のfn:format-numberの動作と同じです。引数の文字列 picture は、fn:format-numberと同じ構文で数値の書式を定義します。\n\n任意の第三引数 `options` は、小数点記号の様な既定のロケール固有の書式設定文字を上書きするために使用します。この引数を指定する場合、XPath F&O 3.1の仕様の数値形式の項に記述されているname/valueペアを含むオブジェクトでなければなりません。"
+    },
+    "$formatBase": {
+        "args": "number [, radix]",
+        "desc": "`number` を引数 `radix` に指定した値を基数とした形式の文字列に変換します。 `radix` が指定されていない場合、基数10を既定値として設定します。 `radix` には2～36の値を設定でき、それ以外の値の場合はエラーになります。"
+    },
+    "$toMillis": {
+        "args": "timestamp",
+        "desc": "ISO 8601形式の文字列 `timestamp` を、Unixエポック(1 January, 1970 UTC)からの経過ミリ秒を表す数値へ変換します。 文字列が正しい形式でない場合、エラーとなります。"
     }
 }

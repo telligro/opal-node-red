@@ -54,8 +54,17 @@ var storageModuleInterface = {
             } catch (e) {
                 return when.reject(e);
             }
-            if (storageModule.projects) {
-                storageModuleInterface.projects = storageModule.projects;
+            if (!!storageModule.projects) {
+                var projectsEnabled = false;
+                if (runtime.settings.hasOwnProperty("editorTheme") && runtime.settings.editorTheme.hasOwnProperty("projects")) {
+                    projectsEnabled = runtime.settings.editorTheme.projects.enabled === true;
+                }
+                if (projectsEnabled) {
+                    storageModuleInterface.projects = storageModule.projects;
+                }
+            }
+            if (storageModule.sshkeys) {
+                storageModuleInterface.sshkeys = storageModule.sshkeys;
             }
             return storageModule.init(runtime.settings,runtime);
         },

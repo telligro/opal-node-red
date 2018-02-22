@@ -23,6 +23,10 @@
 #project-settings-tab-settings {
     overflow-y: scroll;
 }
+.sidebar-version-control-shade {
+    background: #f3f3f3;
+}
+
 .projects-edit-form form {
     margin: 0;
     .form-row {
@@ -107,6 +111,33 @@
 
 }
 .projects-dialog-screen-start {
+    .projects-dialog-screen-start-hero {
+        // background: url(https://nodered.org/images/title-wave.png) no-repeat 0% 100% #8f0000;
+        // background-size: contain;
+        text-align: center;
+        font-size: 2em;
+        padding: 10px;
+        min-height: 60px;
+        color: #555;
+        h1 {
+            text-align: center;
+            color: #f0f0f0;
+            font-size: 2em;
+            font-weight: normal;
+        }
+    }
+    .projects-dialog-screen-start-body {
+        min-height: 400px;
+        line-height: 1.6em;
+        p {
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+        p:first-child {
+            font-weight: 500;
+            font-size: 1.2em;
+        }
+    }
     button.editor-button {
         width: calc(50% - 40px);
         margin: 20px;
@@ -126,7 +157,7 @@
 }
 .projects-dialog-screen-create {
     min-height: 500px;
-    button.editor-button {
+    button.projects-dialog-screen-create-type {
         height: auto;
         padding: 10px;
 
@@ -139,26 +170,22 @@
 .projects-dialog-screen-secret {
     min-height: auto;
 }
+.projects-dialog-project-list-container {
+    border: 1px solid $secondary-border-color;
+    border-radius: 2px;
+}
+.projects-dialog-project-list-inner-container {
+    height: 300px;
+    overflow-y: scroll;
+    position:relative;
+    .red-ui-editableList-border {
+        border: none;
+    }
+}
 .projects-dialog-project-list {
     li {
         padding: 0 !important;
     }
-    &.projects-dialog-project-list-small {
-        .projects-dialog-project-list-entry {
-            padding: 6px 0;
-            i {
-                font-size: 1em;
-            }
-        }
-        .projects-dialog-project-list-entry-name {
-            font-size: 1em;
-        }
-        .projects-dialog-project-list-entry-current {
-            margin-right: 10px;
-            padding-top: 2px;
-        }
-    }
-
 }
 .projects-dialog-project-list-entry {
     padding: 12px 0;
@@ -176,14 +203,16 @@
         cursor: pointer;
         &:hover {
             background: #f3f3f3;
-            border-left-color: #aaa;
-            border-right-color: #aaa;
+            // border-left-color: #aaa;
+            // border-right-color: #aaa;
         }
     }
-    i {
-        color: #ccc;
-        font-size: 2em;
+    .projects-dialog-project-list-entry-icon {
+        i {
+            color: #ccc;
+            font-size: 2em;
 
+        }
     }
     &.selected {
         background: #efefef;
@@ -206,6 +235,18 @@
         font-size: 0.9em;
         color: #999;
         padding-top: 4px;
+    }
+    .projects-dialog-project-list-entry-tools {
+        position: absolute;
+        top: 16px;
+        right: 30px;
+        display: none;
+        color: #999;
+    }
+    &:hover {
+        .projects-dialog-project-list-entry-tools {
+            display: block;
+        }
     }
 }
 .projects-dialog-screen-create-type.editor-button.toggle.selected:not(.disabled):not(:disabled) {
@@ -272,7 +313,12 @@
         // border: 1px dashed #bbb;
     }
     .palette-module-unknown {
-        // border: 1px dashed #b72828;
+        border: 1px dashed #aaa;
+        background: #fafafa;
+    }
+    .palette-module-not-installed {
+        border: 1px dashed #b07575;
+        background: #fee;
         i.fa-warning {
             color: #b07575; //#b72828;
         }
@@ -444,18 +490,24 @@
     span {
         margin: 0 6px;
     }
-    .button-group {
+    a {
+        color: currentColor;
+        &.disabled {
+            pointer-events: none;
+        }
+    }
+    .sidebar-version-control-change-entry-tools {
         position: absolute;
         top: 4px;
         right: 4px;
         display: none;
-    }
-    button {
-        width: 24px;
+        button {
+            width: 24px;
+        }
     }
 
     &:hover {
-        .button-group {
+        .sidebar-version-control-change-entry-tools {
             display: block;
         }
     }
@@ -642,34 +694,182 @@
     }
 }
 
-.projects-dialog-remote-list-entry-header {
-    padding: 8px 10px;
-    background: #f6f6f6;
-    margin-bottom: 8px;
+.projects-dialog-sshkey-list {
+    li {
+        padding: 0 !important;
+    }
+    &.projects-dialog-sshkey-list-small {
+        .projects-dialog-sshkey-list-entry {
+            padding: 6px 0;
+            i {
+                font-size: 1em;
+            }
+        }
+        .projects-dialog-sshkey-list-entry-name {
+            font-size: 1em;
+        }
+        .projects-dialog-sshkey-list-entry-current {
+            margin-right: 10px;
+            padding-top: 2px;
+        }
+    }
 }
-.projects-dialog-remote-list-entry-delete {
-    float: right;
+.red-ui-editableList-container {
+    .projects-dialog-sshkey-list {
+        li:last-child {
+            border-bottom: 0px none;
+        }
+    }
+}
+.projects-dialog-sshkey-list-entry {
+    padding: 12px 0;
+    border-left: 3px solid #fff;
+    border-right: 3px solid #fff;
+    &.sshkey-list-entry-current {
+        &:not(.selectable) {
+            background: #f9f9f9;
+        }
+        i {
+            color: #999;
+        }
+    }
+    &.selectable {
+        cursor: pointer;
+        &:hover {
+            background: #f3f3f3;
+            border-left-color: #aaa;
+            border-right-color: #aaa;
+        }
+    }
+    i {
+        color: #ccc;
+        font-size: 2em;
+
+    }
+    &.selected {
+        background: #efefef;
+        border-left-color:#999;
+        border-right-color:#999;
+    }
+    span {
+        display: inline-block;
+        vertical-align:middle;
+    }
+    .projects-dialog-sshkey-list-entry-icon {
+         margin: 0 10px 0 5px;
+    }
+    .projects-dialog-sshkey-list-entry-name {
+        font-size: 1.2em;
+    }
+    .projects-dialog-sshkey-list-entry-current {
+        float: right;
+        margin-right: 20px;
+        font-size: 0.9em;
+        color: #999;
+        padding-top: 4px;
+    }
+    .projects-dialog-sshkey-list-button-remove {
+        position: absolute;
+        right: 4px;
+    }
 }
 
-/*
-.expandable-list-entry {
-    .exandable-list-entry-header {
-        padding: 15px 0;
+div.projects-dialog-ssh-public-key {
+    position: relative;
+    padding: 15px 20px 0;
+    pre {
+        position: relative;
+        word-break: break-all;
+    }
+    &:after {
+        content: "";
+        display: table;
+        clear: both;
+    }
+}
+
+.projects-dialog-ssh-key-list {
+    li {
+        padding: 0 !important;
+    }
+    .projects-dialog-ssh-key-header {
+        padding: 10px 5px;
         cursor: pointer;
         &:hover {
             background: #f3f3f3;
         }
-        i {
-            width: 16px;
-            text-align: center;
-        }
-        .fa-angle-right {
-            color: #333;
-            transition: all 0.2s ease-in-out;
-        }
-    }
-    &.expanded .fa-angle-right {
-        transform: rotate(90deg);
     }
 }
-*/
+
+.projects-dialog-list {
+    position: relative;
+    .red-ui-editableList-container {
+        padding: 1px;
+        background: #f6f6f6;
+        li:last-child {
+            border-bottom: none;
+        }
+    }
+}
+
+.projects-dialog-list-entry {
+    &.red-ui-search-empty {
+        padding: 0;
+    }
+
+    span {
+        display: inline-block;
+    }
+    .entry-icon {
+        text-align: center;
+        min-width: 30px;
+        vertical-align: top;
+        color: #999;
+    }
+    .entry-name {
+        min-width: 250px;
+    }
+    &.current .entry-name {
+        font-weight: bold;
+    }
+    .entry-detail {
+        color: #aaa;
+        font-size: 0.9em;
+    }
+
+    .entry-remote-name {
+        min-width: 250px;
+    }
+
+
+    .entry-tools {
+        float: right;
+        margin-right: 10px;
+    }
+}
+.projects-dialog-list-dialog {
+    position: relative;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid $secondary-border-color;
+    .projects-edit-form-sublabel {
+        margin-top: -8px !important;
+        display: block !important;
+        width: auto !important;
+    }
+    &:after {
+        content: "";
+        display: table;
+        clear: both;
+    }
+
+    .projects-dialog-list-dialog-header {
+        font-weight: bold;
+        background: #f3f3f3;
+        margin-top: 0 !important;
+        padding: 5px 10px;
+        margin-bottom: 10px;
+    }
+}

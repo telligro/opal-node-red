@@ -17,14 +17,18 @@
 var should = require("should");
 var fs = require('fs-extra');
 var path = require('path');
+var sinon = require('sinon');
 
 var localfilesystem = require("../../../../../red/runtime/storage/localfilesystem");
+var log = require("../../../../../red/runtime/log");
 
 describe('storage/localfilesystem', function() {
     var mockRuntime = {
         log:{
             _:function() { return "placeholder message"},
-            info: function() { }
+            info: function() { },
+            warn: function() { },
+            trace: function() {}
         }
     };
     var userDir = path.join(__dirname,".testUserHome");
@@ -277,6 +281,46 @@ describe('storage/localfilesystem', function() {
                 }).otherwise(function(err) {
                     done(err);
                 });
+            }).otherwise(function(err) {
+                done(err);
+            });
+        }).otherwise(function(err) {
+            done(err);
+        });
+    });
+
+    it('should fsync the flows file',function(done) {
+        var flowFile = 'test.json';
+        var flowFilePath = path.join(userDir,flowFile);
+        localfilesystem.init({editorTheme:{projects:{enabled:false}},userDir:userDir, flowFile:flowFilePath}, mockRuntime).then(function() {
+            sinon.spy(fs,"fsync");
+            localfilesystem.saveFlows(testFlow).then(function() {
+                fs.fsync.callCount.should.be.greaterThan(0);
+                fs.fsync.restore();
+                done();
+            }).otherwise(function(err) {
+                fs.fsync.restore();
+                done(err);
+            });
+        }).otherwise(function(err) {
+            done(err);
+        });
+    });
+
+    it('should log fsync errors and continue',function(done) {
+        var flowFile = 'test.json';
+        var flowFilePath = path.join(userDir,flowFile);
+        localfilesystem.init({userDir:userDir, flowFile:flowFilePath}, mockRuntime).then(function() {
+            sinon.stub(fs,"fsync", function(fd, cb) {
+                cb(new Error());
+            });
+            sinon.spy(log,"warn");
+            localfilesystem.saveFlows(testFlow).then(function() {
+                fs.fsync.callCount.should.be.greaterThan(0);
+                log.warn.restore();
+                fs.fsync.callCount.should.be.greaterThan(0);
+                fs.fsync.restore();
+                done();
             }).otherwise(function(err) {
                 done(err);
             });

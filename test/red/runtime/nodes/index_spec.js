@@ -26,11 +26,11 @@ var registry = require("../../../../red/runtime/nodes/registry");
 
 describe("red/nodes/index", function() {
     before(function() {
-        sinon.stub(flows,"startFlows");
+        sinon.stub(index,"startFlows");
         process.env.NODE_RED_HOME = path.resolve(path.join(__dirname,"..","..","..",".."))
     });
     after(function() {
-        flows.startFlows.restore();
+        index.startFlows.restore();
         delete process.env.NODE_RED_HOME;
     });
 
@@ -136,7 +136,7 @@ describe("red/nodes/index", function() {
 
             var userDir = path.join(__dirname,".testUserHome");
             before(function(done) {
-                sinon.stub(log,"log");
+                sinon.stub(log,"log",function(){});
                 fs.remove(userDir,function(err) {
                     fs.mkdir(userDir,function() {
                         sinon.stub(index, 'load', function() {
@@ -159,7 +159,7 @@ describe("red/nodes/index", function() {
             });
 
             after(function(done) {
-                fs.remove(userDir,function() {;
+                fs.remove(userDir,function() {
                     runtime.stop().then(function() {
                         index.load.restore();
                         localfilesystem.getCredentials.restore();

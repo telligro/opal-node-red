@@ -64,12 +64,15 @@ function start() {
                 //  https://github.com/websockets/ws/pull/632
                 // that is fixed in the 1.x release of the ws module
                 // that we cannot currently pickup as it drops node 0.10 support
-                perMessageDeflate: false
+                //perMessageDeflate: false
             });
 
             wsServer.on('connection',function(ws) {
                 log.audit({event: "comms.open"});
                 var pendingAuth = (settings.adminAuth != null);
+                ws._nr_stack = [];
+                ws._nr_ok2tx = true;
+
                 if (!pendingAuth) {
                     activeConnections.push(ws);
                 } else {
@@ -191,14 +194,25 @@ function publish(topic,data,retain) {
 }
 
 function publishTo(ws,topic,data) {
-    var msg = JSON.stringify({topic:topic,data:data});
-    try {
-        ws.send(msg);
-    } catch(err) {
-        removeActiveConnection(ws);
-        removePendingConnection(ws);
-        log.warn(log._("comms.error-send",{message:err.toString()}));
+    if (topic && data) {
+        ws._nr_stack.push({topic:topic,data:data});
     }
+    if (ws._nr_ok2tx && (ws._nr_stack.length > 0)) {
+        ws._nr_ok2tx = false;
+        try {
+            ws.send(JSON.stringify(ws._nr_stack));
+        } catch(err) {
+            removeActiveConnection(ws);
+            removePendingConnection(ws);
+            log.warn(log._("comms.error-send",{message:err.toString()}));
+        }
+        ws._nr_stack = [];
+        setTimeout(function() {
+            ws._nr_ok2tx = true;
+            publishTo(ws);
+        }, 50);  // TODO: OK so a 50mS update rate should prob not be hard-coded
+    }
+
 }
 
 function handleRemoteSubscription(ws,topic) {

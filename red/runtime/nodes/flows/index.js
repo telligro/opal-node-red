@@ -78,8 +78,12 @@ function loadFlows() {
         });
     }).catch(function(err) {
         activeConfig = null;
-        events.emit("runtime-event",{id:"runtime-state",payload:{type:"warning",error:err.code,text:"notification.warnings."+err.code},retain:true});
-        log.warn(log._("nodes.flows.error",{message:err.toString()}));
+        events.emit("runtime-event",{id:"runtime-state",payload:{type:"warning",error:err.code,project:err.project,text:"notification.warnings."+err.code},retain:true});
+        if (err.code === "project_not_found") {
+            log.warn(log._("storage.localfilesystem.projects.project-not-found",{project:err.project}));
+        } else {
+            log.warn(log._("nodes.flows.error",{message:err.toString()}));
+        }
         throw err;
     });
 }
@@ -254,7 +258,7 @@ function start(type,diff,muteLog) {
             log.info(log._("nodes.flows.missing-type-install-2"));
             log.info("  "+settings.userDir);
         }
-        events.emit("runtime-event",{id:"runtime-state",payload:{type:"warning",text:"notification.warnings.missing-types"},retain:true});
+        events.emit("runtime-event",{id:"runtime-state",payload:{error:"missing-types", type:"warning",text:"notification.warnings.missing-types",types:activeFlowConfig.missingTypes},retain:true});
         return when.resolve();
     }
     if (!muteLog) {

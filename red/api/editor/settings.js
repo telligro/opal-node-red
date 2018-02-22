@@ -17,11 +17,13 @@ var theme = require("../editor/theme");
 var util = require('util');
 var runtime;
 var settings;
+var log;
 
 module.exports = {
     init: function(_runtime) {
         runtime = _runtime;
         settings = runtime.settings;
+        log = runtime.log;
     },
     runtimeSettings: function(req,res) {
         var safeSettings = {
@@ -48,6 +50,22 @@ module.exports = {
             safeSettings.editorTheme.palette = safeSettings.editorTheme.palette || {};
             safeSettings.editorTheme.palette.editable = false;
         }
+        if (runtime.storage.projects) {
+            var activeProject = runtime.storage.projects.getActiveProject();
+            if (activeProject) {
+                safeSettings.project = activeProject;
+            } else if (runtime.storage.projects.flowFileExists()) {
+                safeSettings.files = {
+                    flow: runtime.storage.projects.getFlowFilename(),
+                    credentials: runtime.storage.projects.getCredentialsFilename()
+                }
+            }
+            safeSettings.git = {
+                globalUser: runtime.storage.projects.getGlobalGitUser()
+            }
+        }
+
+        safeSettings.flowEncryptionType = runtime.nodes.getCredentialKeyType();
 
         settings.exportNodeSettings(safeSettings);
         res.json(safeSettings);
@@ -68,12 +86,38 @@ module.exports = {
         } else {
             username = req.user.username;
         }
-        settings.setUserSettings(username, req.body).then(function() {
+        var currentSettings = settings.getUserSettings(username)||{};
+        currentSettings = extend(currentSettings, req.body);
+        settings.setUserSettings(username, currentSettings).then(function() {
             log.audit({event: "settings.update",username:username},req);
             res.status(204).end();
-        }).otherwise(function(err) {
+        }).catch(function(err) {
             log.audit({event: "settings.update",username:username,error:err.code||"unexpected_error",message:err.toString()},req);
             res.status(400).json({error:err.code||"unexpected_error", message:err.toString()});
         });
     }
+}
+
+function extend(target, source) {
+    var keys = Object.keys(source);
+    var i = keys.length;
+    while(i--) {
+        var value = source[keys[i]]
+        var type = typeof value;
+        if (type === 'string' || type === 'number' || type === 'boolean' || Array.isArray(value)) {
+            target[keys[i]] = value;
+        } else if (value === null) {
+            if (target.hasOwnProperty(keys[i])) {
+                delete target[keys[i]];
+            }
+        } else {
+            // Object
+            if (target.hasOwnProperty(keys[i])) {
+                target[keys[i]] = extend(target[keys[i]],value);
+            } else {
+                target[keys[i]] = value;
+            }
+        }
+    }
+    return target;
 }

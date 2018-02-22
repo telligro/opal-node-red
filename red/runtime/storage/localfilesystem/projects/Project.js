@@ -18,11 +18,12 @@
 var fs = require('fs-extra');
 var when = require('when');
 var fspath = require("path");
+var os = require('os');
 
 var gitTools = require("./git");
 var util = require("../util");
 var defaultFileSet = require("./defaultFileSet");
-
+var sshKeys = require("./ssh");
 var settings;
 var runtime;
 var log;
@@ -31,10 +32,32 @@ var projectsDir;
 
 var authCache = require("./git/authCache");
 
+// TODO: DRY - red/api/editor/sshkeys !
+function getSSHKeyUsername(userObj) {
+    var username = '__default';
+    if ( userObj && userObj.name ) {
+        username = userObj.name;
+    }
+    return username;
+}
+function getGitUser(user) {
+    var username;
+    if (!user) {
+        username = "_";
+    } else {
+        username = user.username;
+    }
+    var userSettings = settings.getUserSettings(username);
+    if (userSettings && userSettings.git) {
+        return userSettings.git.user;
+    }
+    return null;
+}
 function Project(name) {
     this.name = name;
     this.path = fspath.join(projectsDir,name);
     this.paths = {};
+    this.files = {};
     this.auth = {origin:{}};
 
     this.missingFiles = [];
@@ -53,7 +76,6 @@ Project.prototype.load = function () {
     this.credentialSecret = projectSettings.credentialSecret;
     this.git = projectSettings.git || { user:{} };
 
-console.log("LOADED",this.git);
     // this.paths.flowFile = fspath.join(this.path,"flow.json");
     // this.paths.credentialsFile = fspath.join(this.path,"flow_cred.json");
 
@@ -105,28 +127,72 @@ console.log("LOADED",this.git);
 
         promises.push(project.loadRemotes());
 
-        return when.settle(promises).then(function() {
+        return when.settle(promises).then(function(results) {
             return project;
         })
     });
 };
+
+Project.prototype.initialise = function(user,data) {
+    var project = this;
+    if (!this.empty) {
+        throw new Error("Cannot initialise non-empty project");
+    }
+    var files = Object.keys(defaultFileSet);
+    var promises = [];
+
+    if (data.hasOwnProperty('credentialSecret')) {
+        var projects = settings.get('projects');
+        projects.projects[project.name] = projects.projects[project.name] || {};
+        projects.projects[project.name].credentialSecret = data.credentialSecret;
+        promises.push(settings.set('projects',projects));
+    }
+
+    project.files.flow = data.files.flow;
+    project.files.credentials = data.files.credentials;
+    var flowFilePath = fspath.join(project.path,project.files.flow);
+    var credsFilePath = getCredentialsFilename(flowFilePath);
+    promises.push(util.writeFile(flowFilePath,"[]"));
+    promises.push(util.writeFile(credsFilePath,"{}"));
+    files.push(project.files.flow);
+    files.push(project.files.credentials);
+    for (var file in defaultFileSet) {
+        if (defaultFileSet.hasOwnProperty(file)) {
+            promises.push(util.writeFile(fspath.join(project.path,file),defaultFileSet[file](project)));
+        }
+    }
+
+    return when.all(promises).then(function() {
+        return gitTools.stageFile(project.path,files);
+    }).then(function() {
+        return gitTools.commit(project.path,"Create project files",getGitUser(user));
+    }).then(function() {
+        return project.load()
+    })
+}
 
 Project.prototype.loadRemotes = function() {
     var project = this;
     return gitTools.getRemotes(project.path).then(function(remotes) {
         project.remotes = remotes;
     }).then(function() {
-        return project.loadBranches();
+        project.branches = {};
+        return project.status();
     }).then(function() {
-
-        var allRemotes = Object.keys(project.remotes);
-        var match = "";
-        allRemotes.forEach(function(remote) {
-            if (project.branches.remote.indexOf(remote) === 0 && match.length < remote.length) {
-                match = remote;
+        if (project.remotes) {
+            var allRemotes = Object.keys(project.remotes);
+            var match = "";
+            if (project.branches.remote) {
+                allRemotes.forEach(function(remote) {
+                    if (project.branches.remote.indexOf(remote) === 0 && match.length < remote.length) {
+                        match = remote;
+                    }
+                });
+                project.currentRemote = project.parseRemoteBranch(project.branches.remote).remote;
             }
-        });
-        project.currentRemote = project.parseRemoteBranch(project.branches.remote).remote;
+        } else {
+            delete project.currentRemote;
+        }
     });
 }
 
@@ -149,13 +215,20 @@ Project.prototype.parseRemoteBranch = function (remoteBranch) {
 
 };
 
-Project.prototype.loadBranches = function() {
-    var project = this;
-    return gitTools.getBranchInfo(project.path).then(function(branches) {
-        project.branches = branches;
-    });
+Project.prototype.isEmpty = function () {
+    return this.empty;
+};
+Project.prototype.isMerging = function() {
+    return this.merging;
 }
+
 Project.prototype.update = function (user, data) {
+    var username;
+    if (!user) {
+        username = "_";
+    } else {
+        username = user.username;
+    }
 
     var promises = [];
     var project = this;
@@ -211,23 +284,9 @@ Project.prototype.update = function (user, data) {
         savePackage = true;
         this.package.description = data.summary;
     }
-    // if (data.hasOwnProperty('remote')) {
-    //     // TODO: this MUST move under 'git'
-    //     for (var remote in data.remote) {
-    //         if (data.remote.hasOwnProperty(remote)) {
-    //             authCache.set(project.name,remote,data.remote[remote]);
-    //         }
-    //     }
-    // }
 
     if (data.hasOwnProperty('git')) {
         if (data.git.hasOwnProperty('user')) {
-            var username;
-            if (!user) {
-                username = "_";
-            } else {
-                username = user.username;
-            }
             globalProjectSettings.projects[this.name].git = globalProjectSettings.projects[this.name].git || {};
             globalProjectSettings.projects[this.name].git.user = globalProjectSettings.projects[this.name].git.user || {};
             globalProjectSettings.projects[this.name].git.user[username] = {
@@ -243,7 +302,7 @@ Project.prototype.update = function (user, data) {
         if (data.git.hasOwnProperty('remotes')) {
             var remoteNames = Object.keys(data.git.remotes);
             var remotesChanged = false;
-            var modifyRemotesPromise = when.resolve();
+            var modifyRemotesPromise = Promise.resolve();
             remoteNames.forEach(function(name) {
                 if (data.git.remotes[name].removed) {
                     remotesChanged = true;
@@ -255,7 +314,7 @@ Project.prototype.update = function (user, data) {
                     }
                     if (data.git.remotes[name].username && data.git.remotes[name].password) {
                         var url = data.git.remotes[name].url || project.remotes[name].fetch;
-                        authCache.set(project.name,url,data.git.remotes[name]);
+                        authCache.set(project.name,url,username,data.git.remotes[name]);
                     }
                 }
             })
@@ -304,7 +363,12 @@ Project.prototype.update = function (user, data) {
 };
 
 Project.prototype.getFiles = function () {
-    return gitTools.getFiles(this.path);
+    return gitTools.getFiles(this.path).catch(function(err) {
+        if (/ambiguous argument/.test(err.message)) {
+            return {};
+        }
+        throw err;
+    });
 };
 Project.prototype.stageFile = function(file) {
     return gitTools.stageFile(this.path,file);
@@ -313,20 +377,28 @@ Project.prototype.unstageFile = function(file) {
     return gitTools.unstageFile(this.path,file);
 }
 Project.prototype.commit = function(user, options) {
-    var username;
-    if (!user) {
-        username = "_";
-    } else {
-        username = user.username;
-    }
-    var gitUser = this.git.user[username];
-    return gitTools.commit(this.path,options.message,gitUser);
+    var self = this;
+    return gitTools.commit(this.path,options.message,getGitUser(user)).then(function() {
+        if (self.merging) {
+            self.merging = false;
+            return
+        }
+    });
 }
 Project.prototype.getFileDiff = function(file,type) {
     return gitTools.getFileDiff(this.path,file,type);
 }
 Project.prototype.getCommits = function(options) {
-    return gitTools.getCommits(this.path,options);
+    return gitTools.getCommits(this.path,options).catch(function(err) {
+        if (/bad default revision/i.test(err.message) || /ambiguous argument/i.test(err.message) || /does not have any commits yet/i.test(err.message)) {
+            return {
+                count:0,
+                commits:[],
+                total: 0
+            }
+        }
+        throw err;
+    })
 }
 Project.prototype.getCommit = function(sha) {
     return gitTools.getCommit(this.path,sha);
@@ -338,12 +410,20 @@ Project.prototype.getFile = function (filePath,treeish) {
         return fs.readFile(fspath.join(this.path,filePath),"utf8");
     }
 };
+Project.prototype.revertFile = function (filePath) {
+    var self = this;
+    return gitTools.revertFile(this.path, filePath).then(function() {
+        return self.load();
+    });
+};
 
-Project.prototype.status = function() {
+
+
+Project.prototype.status = function(user, includeRemote) {
     var self = this;
 
     var fetchPromise;
-    if (this.remotes) {
+    if (this.remotes && includeRemote) {
         fetchPromise = gitTools.getRemoteBranch(self.path).then(function(remoteBranch) {
             if (remoteBranch) {
                 var allRemotes = Object.keys(self.remotes);
@@ -353,11 +433,11 @@ Project.prototype.status = function() {
                         match = remote;
                     }
                 })
-                return self.fetch(match);
+                return self.fetch(user, match);
             }
         });
     } else {
-        fetchPromise = when.resolve();
+        fetchPromise = Promise.resolve();
     }
 
     var completeStatus = function(fetchError) {
@@ -369,47 +449,120 @@ Project.prototype.status = function() {
             var result = results[0];
             if (results[1]) {
                 result.merging = true;
+                if (!self.merging) {
+                    self.merging = true;
+                    runtime.events.emit("runtime-event",{
+                        id:"runtime-state",
+                        payload:{
+                            type:"warning",
+                            error:"git_merge_conflict",
+                            project:self.name,
+                            text:"notification.warnings.git_merge_conflict"
+                        },
+                        retain:true}
+                    );
+                }
+            } else {
+                self.merging = false;
             }
             self.branches.local = result.branches.local;
             self.branches.remote = result.branches.remote;
-            if (fetchError) {
+            if (fetchError && !/ambiguous argument/.test(fetchError.message)) {
                 result.branches.remoteError = {
                     remote: fetchError.remote,
                     code: fetchError.code
                 }
             }
+            if (result.commits.total === 0 && Object.keys(result.files).length === 0) {
+                if (!self.empty) {
+                    runtime.events.emit("runtime-event",{
+                        id:"runtime-state",
+                        payload:{
+                            type:"warning",
+                            error:"project_empty",
+                            text:"notification.warnings.project_empty"},
+                            retain:true
+                        }
+                    );
+                }
+                self.empty = true;
+            } else {
+                if (self.empty) {
+                    if (self.paths.flowFile) {
+                        runtime.events.emit("runtime-event",{id:"runtime-state",retain:true});
+                    } else {
+                        runtime.events.emit("runtime-event",{
+                            id:"runtime-state",
+                            payload:{
+                                type:"warning",
+                                error:"missing_flow_file",
+                                text:"notification.warnings.missing_flow_file"},
+                                retain:true
+                            }
+                        );
+                    }
+                }
+                delete self.empty;
+            }
             return result;
+        }).catch(function(err) {
+            if (/ambiguous argument/.test(err.message)) {
+                return {
+                    files:{},
+                    commits:{total:0},
+                    branches:{}
+                };
+            }
+            throw err;
         });
     }
     return fetchPromise.then(completeStatus).catch(function(e) {
-        if (e.code !== 'git_auth_failed') {
-            console.log("Fetch failed");
-            console.log(e);
-        }
+        // if (e.code !== 'git_auth_failed') {
+        //     console.log("Fetch failed");
+        //     console.log(e);
+        // }
         return completeStatus(e);
     })
 };
 
-Project.prototype.push = function (remoteBranchName,setRemote) {
-    var remote = this.parseRemoteBranch(remoteBranchName);
-    return gitTools.push(this.path, remote.remote || this.currentRemote,remote.branch, setRemote, authCache.get(this.name,this.remotes[remote.remote || this.currentRemote].fetch));
+Project.prototype.push = function (user,remoteBranchName,setRemote) {
+    var username;
+    if (!user) {
+        username = "_";
+    } else {
+        username = user.username;
+    }
+    var remote = this.parseRemoteBranch(remoteBranchName||this.branches.remote);
+    return gitTools.push(this.path, remote.remote || this.currentRemote,remote.branch, setRemote, authCache.get(this.name,this.remotes[remote.remote || this.currentRemote].fetch,username));
 };
 
-Project.prototype.pull = function (remoteBranchName,setRemote) {
+Project.prototype.pull = function (user,remoteBranchName,setRemote,allowUnrelatedHistories) {
+    var username;
+    if (!user) {
+        username = "_";
+    } else {
+        username = user.username;
+    }
     var self = this;
     if (setRemote) {
         return gitTools.setUpstream(this.path, remoteBranchName).then(function() {
-            return gitTools.pull(self.path, null, null, authCache.get(self.name,this.remotes[this.currentRemote].fetch));
+            self.currentRemote = self.parseRemoteBranch(remoteBranchName).remote;
+            return gitTools.pull(self.path, null, null, allowUnrelatedHistories, authCache.get(self.name,self.remotes[self.currentRemote].fetch,username),getGitUser(user));
         })
     } else {
         var remote = this.parseRemoteBranch(remoteBranchName);
-        return gitTools.pull(this.path, remote.remote, remote.branch, authCache.get(this.name,this.remotes[this.currentRemote].fetch));
+        return gitTools.pull(this.path, remote.remote, remote.branch, allowUnrelatedHistories, authCache.get(this.name,this.remotes[remote.remote||self.currentRemote].fetch,username),getGitUser(user));
     }
 };
 
 Project.prototype.resolveMerge = function (file,resolutions) {
     var filePath = fspath.join(this.path,file);
     var self = this;
+    if (typeof resolutions === 'string') {
+        return util.writeFile(filePath, resolutions).then(function() {
+            return self.stageFile(file);
+        })
+    }
     return fs.readFile(filePath,"utf8").then(function(content) {
         var lines = content.split("\n");
         var result = [];
@@ -449,35 +602,50 @@ Project.prototype.resolveMerge = function (file,resolutions) {
     });
 };
 Project.prototype.abortMerge = function () {
-    return gitTools.abortMerge(this.path);
+    var self = this;
+    return gitTools.abortMerge(this.path).then(function() {
+        self.merging = false;
+    })
 };
 
-Project.prototype.getBranches = function (isRemote) {
+Project.prototype.getBranches = function (user, isRemote) {
     var self = this;
     var fetchPromise;
     if (isRemote) {
-        fetchPromise = self.fetch();
+        fetchPromise = self.fetch(user);
     } else {
-        fetchPromise = when.resolve();
+        fetchPromise = Promise.resolve();
     }
     return fetchPromise.then(function() {
         return gitTools.getBranches(self.path,isRemote);
     });
 };
 
-Project.prototype.fetch = function(remoteName) {
+Project.prototype.deleteBranch = function (user, branch, isRemote, force) {
+    // TODO: isRemote==true support
+    // TODO: make sure we don't try to delete active branch
+    return gitTools.deleteBranch(this.path,branch,isRemote, force);
+};
+
+Project.prototype.fetch = function(user,remoteName) {
+    var username;
+    if (!user) {
+        username = "_";
+    } else {
+        username = user.username;
+    }
     var project = this;
     if (remoteName) {
-        return gitTools.fetch(project.path,remoteName,authCache.get(project.name,project.remotes[remoteName].fetch)).catch(function(err) {
+        return gitTools.fetch(project.path,remoteName,authCache.get(project.name,project.remotes[remoteName].fetch,username)).catch(function(err) {
             err.remote = remoteName;
             throw err;
         })
     } else {
         var remotes = Object.keys(this.remotes);
-        var promise = when.resolve();
+        var promise = Promise.resolve();
         remotes.forEach(function(remote) {
             promise = promise.then(function() {
-                return gitTools.fetch(project.path,remote,authCache.get(project.name,project.remotes[remote].fetch))
+                return gitTools.fetch(project.path,remote,authCache.get(project.name,project.remotes[remote].fetch,username))
             }).catch(function(err) {
                 err.remote = remote;
                 throw err;
@@ -496,16 +664,56 @@ Project.prototype.setBranch = function (branchName, isCreate) {
 Project.prototype.getBranchStatus = function (branchName) {
     return gitTools.getBranchStatus(this.path,branchName);
 };
+
+
+
+Project.prototype.getRemotes = function (user) {
+    return gitTools.getRemotes(this.path).then(function(remotes) {
+        var result = [];
+        for (var name in remotes) {
+            if (remotes.hasOwnProperty(name)) {
+                remotes[name].name = name;
+                result.push(remotes[name]);
+            }
+        }
+        return {remotes:result};
+    })
+};
+Project.prototype.addRemote = function(user,remote,options) {
+    var project = this;
+    return gitTools.addRemote(this.path,remote,options).then(function() {
+        return project.loadRemotes()
+    });
+}
+Project.prototype.updateRemote = function(user,remote,options) {
+    var username;
+    if (!user) {
+        username = "_";
+    } else {
+        username = user.username;
+    }
+
+    if (options.auth) {
+        var url = this.remotes[remote].fetch;
+        if (options.auth.keyFile) {
+            options.auth.key_path = sshKeys.getPrivateKeyPath(getSSHKeyUsername(user), options.auth.keyFile);
+        }
+        authCache.set(this.name,url,username,options.auth);
+    }
+    return Promise.resolve();
+}
+Project.prototype.removeRemote = function(user, remote) {
+    // TODO: if this was the last remote using this url, then remove the authCache
+    // details.
+    var project = this;
+    return gitTools.removeRemote(this.path,remote).then(function() {
+        return project.loadRemotes()
+    });
+}
+
+
 Project.prototype.getFlowFile = function() {
-    console.log("Project.getFlowFile = ",this.paths.flowFile);
-    console.log(this.paths);
-    console.log(this.path);
-
-    //FIXME: 20171027 Temp Fix to import older projects
-    // if (!this.paths.flowFile) {
-    //     this.paths.flowFile = 'flow.json';
-    // }
-
+    // console.log("Project.getFlowFile = ",this.paths.flowFile);
     if (this.paths.flowFile) {
         return fspath.join(this.path,this.paths.flowFile);
     } else {
@@ -514,16 +722,14 @@ Project.prototype.getFlowFile = function() {
 }
 
 Project.prototype.getFlowFileBackup = function() {
-    return getBackupFilename(this.getFlowFile());
+    var flowFile = this.getFlowFile();
+    if (flowFile) {
+        return getBackupFilename(flowFile);
+    }
+    return null;
 }
 Project.prototype.getCredentialsFile = function() {
-    console.log("Project.getCredentialsFile = ",this.paths.credentialsFile);
-
-    //FIXME: 20171027 Temp Fix to import older projects
-    // if (!this.paths.credentialsFile) {
-    //     this.paths.credentialsFile = 'flow_cred.json';
-    // }
-
+    // console.log("Project.getCredentialsFile = ",this.paths.credentialsFile);
     if (this.paths.credentialsFile) {
         return fspath.join(this.path,this.paths.credentialsFile);
     } else {
@@ -541,6 +747,7 @@ Project.prototype.toJSON = function () {
         summary: this.package.description,
         description: this.description,
         dependencies: this.package.dependencies||{},
+        empty: this.empty,
         settings: {
             credentialsEncrypted: (typeof this.credentialSecret === "string"),
             credentialSecretInvalid: this.credentialSecretInvalid
@@ -557,20 +764,17 @@ Project.prototype.toJSON = function () {
 };
 
 
-function getCredentialsFilename(filename, onlyName) {
+function getCredentialsFilename(filename) {
+    filename = filename || "undefined";
     // TODO: DRY - ./index.js
     var ffDir = fspath.dirname(filename);
     var ffExt = fspath.extname(filename);
     var ffBase = fspath.basename(filename,ffExt);
-    console.log('getCredentialsFilename');
-    console.log(filename,ffDir,ffExt,ffBase);
-    if(onlyName===true){
-        return ffBase + "_cred" + ffExt;
-    }
     return fspath.join(ffDir,ffBase+"_cred"+ffExt);
 }
 function getBackupFilename(filename) {
     // TODO: DRY - ./index.js
+    filename = filename || "undefined";
     var ffName = fspath.basename(filename);
     var ffDir = fspath.dirname(filename);
     return fspath.join(ffDir,"."+ffName+".backup");
@@ -580,8 +784,9 @@ function checkProjectExists(project) {
     var projectPath = fspath.join(projectsDir,project);
     return fs.pathExists(projectPath).then(function(exists) {
         if (!exists) {
-            var e = new Error("NLS: project not found");
+            var e = new Error("Project not found: "+project);
             e.code = "project_not_found";
+            e.project = project;
             throw e;
         }
     });
@@ -592,35 +797,71 @@ function createProjectDirectory(project) {
     return fs.ensureDir(projectPath);
 }
 
+function deleteProjectDirectory(project) {
+    var projectPath = fspath.join(projectsDir,project);
+    return fs.remove(projectPath);
+}
+
 function createDefaultProject(user, project) {
     var projectPath = fspath.join(projectsDir,project.name);
     // Create a basic skeleton of a project
     return gitTools.initRepo(projectPath).then(function() {
         var promises = [];
+        var files = Object.keys(defaultFileSet);
+        if (project.files) {
+            if (project.files.flow && !/\.\./.test(project.files.flow)) {
+                var flowFilePath;
+                var credsFilePath;
+
+                if (project.migrateFiles) {
+                    var baseFlowFileName = project.files.flow || fspath.basename(project.files.oldFlow);
+                    var baseCredentialFileName = project.files.credentials || fspath.basename(project.files.oldCredentials);
+                    files.push(baseFlowFileName);
+                    files.push(baseCredentialFileName);
+                    flowFilePath = fspath.join(projectPath,baseFlowFileName);
+                    credsFilePath = fspath.join(projectPath,baseCredentialFileName);
+                    if (fs.existsSync(project.files.oldFlow)) {
+                        log.trace("Migrating "+project.files.oldFlow+" to "+flowFilePath);
+                        promises.push(fs.copy(project.files.oldFlow,flowFilePath));
+                    } else {
+                        log.trace(project.files.oldFlow+" does not exist - creating blank file");
+                        promises.push(util.writeFile(flowFilePath,"[]"));
+                    }
+                    log.trace("Migrating "+project.files.oldCredentials+" to "+credsFilePath);
+                    runtime.nodes.setCredentialSecret(project.credentialSecret);
+                    promises.push(runtime.nodes.exportCredentials().then(function(creds) {
+                        var credentialData;
+                        if (settings.flowFilePretty) {
+                            credentialData = JSON.stringify(creds,null,4);
+                        } else {
+                            credentialData = JSON.stringify(creds);
+                        }
+                        return util.writeFile(credsFilePath,credentialData);
+                    }));
+                    delete project.migrateFiles;
+                    project.files.flow = baseFlowFileName;
+                    project.files.credentials = baseCredentialFileName;
+                } else {
+                    project.files.credentials = project.files.credentials || getCredentialsFilename(project.files.flow);
+                    files.push(project.files.flow);
+                    files.push(project.files.credentials);
+                    flowFilePath = fspath.join(projectPath,project.files.flow);
+                    credsFilePath = getCredentialsFilename(flowFilePath);
+                    promises.push(util.writeFile(flowFilePath,"[]"));
+                    promises.push(util.writeFile(credsFilePath,"{}"));
+                }
+            }
+        }
         for (var file in defaultFileSet) {
             if (defaultFileSet.hasOwnProperty(file)) {
                 promises.push(util.writeFile(fspath.join(projectPath,file),defaultFileSet[file](project)));
             }
         }
-        if (project.files) {
-            if (project.files.flow && !/\.\./.test(project.files.flow)) {
-                var flowFilePath = fspath.join(projectPath,project.files.flow);
-                promises.push(util.writeFile(flowFilePath,"[]"));
-                var credsFilePath = getCredentialsFilename(flowFilePath);
-                promises.push(util.writeFile(credsFilePath,"{}"));
-            }
-        }
+
         return when.all(promises).then(function() {
-            var files = Object.keys(defaultFileSet);
-            if (project.files) {
-                if (project.files.flow && !/\.\./.test(project.files.flow)) {
-                    files.push(project.files.flow);
-                    files.push(getCredentialsFilename(flowFilePath, true))
-                }
-            }
             return gitTools.stageFile(projectPath,files);
         }).then(function() {
-            return gitTools.commit(projectPath,"Create project");
+            return gitTools.commit(projectPath,"Create project",getGitUser(user));
         })
     });
 }
@@ -657,8 +898,15 @@ function checkProjectFiles(project) {
 }
 
 function createProject(user, metadata) {
+    var username;
+    if (!user) {
+        username = "_";
+    } else {
+        username = user.username;
+    }
+
     var project = metadata.name;
-    return when.promise(function(resolve,reject) {
+    return new Promise(function(resolve,reject) {
         var projectPath = fspath.join(projectsDir,project);
         fs.stat(projectPath, function(err,stat) {
             if (!err) {
@@ -668,6 +916,11 @@ function createProject(user, metadata) {
             }
             createProjectDirectory(project).then(function() {
                 var projects = settings.get('projects');
+                if (!projects) {
+                    projects = {
+                        projects:{}
+                    }
+                }
                 projects.projects[project] = {};
                 if (metadata.hasOwnProperty('credentialSecret')) {
                     projects.projects[project].credentialSecret = metadata.credentialSecret;
@@ -678,38 +931,51 @@ function createProject(user, metadata) {
                     var originRemote = metadata.git.remotes.origin;
                     var auth;
                     if (originRemote.hasOwnProperty("username") && originRemote.hasOwnProperty("password")) {
-                        authCache.set(project,originRemote.url,{ // TODO: hardcoded remote name
+                        authCache.set(project,originRemote.url,username,{ // TODO: hardcoded remote name
                                 username: originRemote.username,
                                 password: originRemote.password
                             }
                         );
-                        auth = authCache.get(project,originRemote.url);
+                        auth = authCache.get(project,originRemote.url,username);
                     }
-                    return gitTools.clone(originRemote,auth,projectPath).then(function(result) {
-                        // Check this is a valid project
-                        // If it is empty
-                        //  - if 'populate' flag is set, call populateProject
-                        //  - otherwise reject with suitable error to allow UI to confirm population
-                        // If it is missing package.json/flow.json/flow_cred.json
-                        //  - reject as invalid project
-
-                        // checkProjectFiles(project).then(function(results) {
-                        //     console.log("checkProjectFiles");
-                        //     console.log(results);
-                        // });
-
-                        resolve(getProject(project));
-                    }).catch(function(error) {
-                        fs.remove(projectPath,function() {
-                            reject(error);
-                        });
-                    })
+                    else if (originRemote.hasOwnProperty("keyFile") && originRemote.hasOwnProperty("passphrase")) {
+                        authCache.set(project,originRemote.url,username,{ // TODO: hardcoded remote name
+                                key_path: sshKeys.getPrivateKeyPath(getSSHKeyUsername(user), originRemote.keyFile),
+                                passphrase: originRemote.passphrase
+                            }
+                        );
+                        auth = authCache.get(project,originRemote.url,username);
+                    }
+                    return gitTools.clone(originRemote,auth,projectPath);
                 } else {
-                    createDefaultProject(user, metadata).then(function() { resolve(getProject(project))}).catch(reject);
+                    return createDefaultProject(user, metadata);
                 }
-            }).catch(reject);
+            }).then(function() {
+                resolve(getProject(project))
+            }).catch(function(err) {
+                fs.remove(projectPath,function() {
+                    reject(err);
+                });
+            });
         })
     })
+}
+
+function deleteProject(user, name) {
+    return checkProjectExists(name).then(function() {
+        if (currentProject && currentProject.name === name) {
+            var e = new Error("NLS: Can't delete the active project");
+            e.code = "cannot_delete_active_project";
+            throw e;
+        }
+        else {
+            return deleteProjectDirectory(name).then(function() {
+                var projects = settings.get('projects');
+                delete projects.projects[name];
+                return settings.set('projects', projects);
+            });
+        }
+    });
 }
 
 var currentProject;
@@ -727,7 +993,9 @@ function getProject(name) {
 function listProjects() {
     return fs.readdir(projectsDir).then(function(fns) {
         var dirs = [];
-        fns.sort().filter(function(fn) {
+        fns.sort(function(A,B) {
+            return A.toLowerCase().localeCompare(B.toLowerCase());
+        }).filter(function(fn) {
             var fullPath = fspath.join(projectsDir,fn);
             if (fn[0] != ".") {
                 var stats = fs.lstatSync(fullPath);
@@ -745,12 +1013,14 @@ function init(_settings, _runtime) {
     runtime = _runtime;
     log = runtime.log;
     projectsDir = fspath.join(settings.userDir,"projects");
+    authCache.init();
 }
 
 module.exports = {
     init: init,
     get: getProject,
     create: createProject,
+    delete: deleteProject,
     list: listProjects
 
 }
