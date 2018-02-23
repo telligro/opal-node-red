@@ -135,7 +135,7 @@ module.exports = function(RED) {
             }
             var payload = null;
 
-            if (typeof msg.payload !== "undefined" && (method == "POST" || method == "PUT" || method == "PATCH" ) ) {
+            if (method !== 'GET' && method !== 'HEAD' && typeof msg.payload !== "undefined") {
                 if (typeof msg.payload === "string" || Buffer.isBuffer(msg.payload)) {
                     payload = msg.payload;
                 } else if (typeof msg.payload == "number") {
@@ -196,6 +196,10 @@ module.exports = function(RED) {
             }
             if (tlsNode) {
                 tlsNode.addTLSOptions(opts);
+            } else {
+                if (msg.hasOwnProperty('rejectUnauthorized')) {
+                    opts.rejectUnauthorized = msg.rejectUnauthorized;
+                }
             }
             var req = ((/^https/.test(urltotest))?https:http).request(opts,function(res) {
                 // Force NodeJs to return a Buffer (instead of a string)
@@ -259,9 +263,8 @@ module.exports = function(RED) {
                                 catch(e) { node.warn(RED._("httpin.errors.json-error")); }
                             }
                         }
-
-                        node.send(msg);
                         node.status({});
+                        node.send(msg);
                     }
                 });
             });
@@ -276,8 +279,8 @@ module.exports = function(RED) {
                 node.error(err,msg);
                 msg.payload = err.toString() + " : " + url;
                 msg.statusCode = err.code;
-                node.send(msg);
                 node.status({fill:"red",shape:"ring",text:err.code});
+                node.send(msg);
             });
             if (payload) {
                 req.write(payload);
