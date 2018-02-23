@@ -758,7 +758,7 @@ RED.editor = (function() {
             buildLabelRow().appendTo(outputsDiv);
         }
 
-        if (!node._def.defaults.hasOwnProperty("icon")) {
+        if ((!node._def.defaults || !node._def.defaults.hasOwnProperty("icon")) && node.type !== "subflow") {
             $('<div class="form-row"><div id="node-settings-icon"></div></div>').appendTo(dialogForm);
             var iconDiv = $("#node-settings-icon");
             $('<label data-i18n="editor.settingIcon">').appendTo(iconDiv);
@@ -1087,7 +1087,7 @@ RED.editor = (function() {
                             changed = true;
                         }
 
-                        if (!editing_node._def.defaults.hasOwnProperty("icon")) {
+                        if (!editing_node._def.defaults || !editing_node._def.defaults.hasOwnProperty("icon")) {
                             var iconModule = $("#node-settings-icon-module-hidden").val();
                             var iconFile = $("#node-settings-icon-file-hidden").val();
                             var icon = (iconModule && iconFile) ? iconModule+"/"+iconFile : "";
