@@ -175,7 +175,16 @@ if (settings.httpNodeRoot !== false) {
     settings.httpNodeAuth = settings.httpNodeAuth || settings.httpAuth;
 }
 
-settings.uiPort = parsedArgs.port||settings.uiPort||1880;
+// if we got a port from command line, use it (even if 0)
+// replicate (settings.uiPort = parsedArgs.port||settings.uiPort||1880;) but allow zero
+if (parsedArgs.port !== undefined){
+    settings.uiPort = parsedArgs.port;
+} else {
+    if (settings.uiPort === undefined){
+        settings.uiPort = 1880;
+    }
+}
+
 settings.uiHost = settings.uiHost||"0.0.0.0";
 
 if (flowFile) {
@@ -269,9 +278,14 @@ if (settings.httpStatic) {
 }
 
 function getListenPath() {
+    var port = settings.serverPort;
+    if (port === undefined){
+        port = settings.uiPort;
+    }
+
     var listenPath = 'http'+(settings.https?'s':'')+'://'+
                     (settings.uiHost == '0.0.0.0'?'127.0.0.1':settings.uiHost)+
-                    ':'+settings.uiPort;
+                    ':'+port;
     if (settings.httpAdminRoot !== false) {
         listenPath += settings.httpAdminRoot;
     } else if (settings.httpStatic) {
@@ -300,6 +314,7 @@ RED.start().then(function() {
             if (settings.httpAdminRoot === false) {
                 RED.log.info(RED.log._("server.admin-ui-disabled"));
             }
+            settings.serverPort = server.address().port;
             process.title = parsedArgs.title || 'node-red';
             RED.log.info(RED.log._("server.now-running", {listenpath:getListenPath()}));
         });
@@ -316,6 +331,10 @@ RED.start().then(function() {
 });
 
 process.on('uncaughtException',function(err) {
+    util.log('[warn]', err.code);
+    if (err.code == 'EADDRINUSE' && JSON.stringify(err.stack).indexOf(9010)!=-1){
+        return;
+    }
     util.log('[red] Uncaught Exception:');
     if (err.stack) {
         util.log(err.stack);
@@ -346,7 +365,7 @@ process
     //     RED.comms.publish('notification/runtime-state', { type: "error", text: RED.log._("runtime.uncaughtException", { errorSrc: 'unknown' }), error: "runtime-error-uncaughtException" }, true);
     // })
     .on('uncaughtException', err => {
-        console.error(err, ' Report this: Uncaught Exception thrown ');
+        // console.error(err, ' Report this: Uncaught Exception thrown ');
         var errorModule = err.stack;
         try {
             errorModule = errParser.parse(err)[0].source;

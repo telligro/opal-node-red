@@ -110,6 +110,17 @@ RED.editor = (function() {
                 }
             }
         }
+        if (node.icon) {
+            var iconPath = RED.utils.separateIconPath(node.icon);
+            if (!iconPath.module) {
+                return isValid;
+            }
+            var iconSets = RED.nodes.getIconSets();
+            var iconFileList = iconSets[iconPath.module];
+            if (!iconFileList || iconFileList.indexOf(iconPath.file) === -1) {
+                isValid = false;
+            }
+        }
         return isValid;
     }
 
@@ -129,7 +140,7 @@ RED.editor = (function() {
         if ("required" in definition[property] && definition[property].required) {
             valid = value !== "";
         }
-        if ("validate" in definition[property]) {
+        if (valid && "validate" in definition[property]) {
             try {
                 // console.log('Calling validator %s', value);
                 valid = definition[property].validate.call(node,value);
@@ -166,6 +177,23 @@ RED.editor = (function() {
                 if (node._def.credentials.hasOwnProperty(prop)) {
                     validateNodeEditorProperty(node,node._def.credentials,prop,prefix);
                 }
+            }
+        }
+        if (node._def.hasOwnProperty("defaults") && !node._def.defaults.hasOwnProperty("icon") && node.icon) {
+            var iconPath = RED.utils.separateIconPath(node.icon);
+            var iconSets = RED.nodes.getIconSets();
+            var iconFileList = iconSets[iconPath.module];
+            var iconModule = $("#node-settings-icon-module");
+            var iconFile = $("#node-settings-icon-file");
+            if (!iconFileList) {
+                iconModule.addClass("input-error");
+                iconFile.removeClass("input-error");
+            } else if (iconFileList.indexOf(iconPath.file) === -1) {
+                iconModule.removeClass("input-error");
+                iconFile.addClass("input-error");
+            } else {
+                iconModule.removeClass("input-error");
+                iconFile.removeClass("input-error");
             }
         }
     }
@@ -729,10 +757,88 @@ RED.editor = (function() {
         } else {
             buildLabelRow().appendTo(outputsDiv);
         }
+
+        if ((!node._def.defaults || !node._def.defaults.hasOwnProperty("icon")) && node.type !== "subflow") {
+            $('<div class="form-row"><div id="node-settings-icon"></div></div>').appendTo(dialogForm);
+            var iconDiv = $("#node-settings-icon");
+            $('<label data-i18n="editor.settingIcon">').appendTo(iconDiv);
+            var iconForm = $('<div>',{class:"node-label-form-row"});
+            iconForm.appendTo(iconDiv);
+            $('<label>').appendTo(iconForm);
+
+            var selectIconModule = $('<select id="node-settings-icon-module"><option value=""></option></select>').appendTo(iconForm);
+            var iconPath;
+            if (node.icon) {
+                iconPath = RED.utils.separateIconPath(node.icon);
+            } else {
+                iconPath = RED.utils.getDefaultNodeIcon(node._def, node);
+            }
+            var iconSets = RED.nodes.getIconSets();
+            Object.keys(iconSets).forEach(function(moduleName) {
+                selectIconModule.append($("<option></option>").val(moduleName).text(moduleName));
+            });
+            if (iconPath.module && !iconSets[iconPath.module]) {
+                selectIconModule.append($("<option disabled></option>").val(iconPath.module).text(iconPath.module));
+            }
+            selectIconModule.val(iconPath.module);
+            var iconModuleHidden = $('<input type="hidden" id="node-settings-icon-module-hidden"></input>').appendTo(iconForm);
+            iconModuleHidden.val(iconPath.module);
+
+            var selectIconFile = $('<select id="node-settings-icon-file"><option value=""></option></select>').appendTo(iconForm);
+            selectIconModule.change(function() {
+                moduleChange(selectIconModule, selectIconFile, iconModuleHidden, iconFileHidden, iconSets, true);
+            });
+            var iconFileHidden = $('<input type="hidden" id="node-settings-icon-file-hidden"></input>').appendTo(iconForm);
+            iconFileHidden.val(iconPath.file);
+            selectIconFile.change(function() {
+                selectIconFile.removeClass("input-error");
+                var fileName = selectIconFile.val();
+                iconFileHidden.val(fileName);
+            });
+            var clear = $('<button class="editor-button editor-button-small"><i class="fa fa-times"></i></button>').appendTo(iconForm);
+            clear.click(function(evt) {
+                evt.preventDefault();
+                var iconPath = RED.utils.getDefaultNodeIcon(node._def, node);
+                selectIconModule.val(iconPath.module);
+                moduleChange(selectIconModule, selectIconFile, iconModuleHidden, iconFileHidden, iconSets, true);
+                selectIconFile.removeClass("input-error");
+                selectIconFile.val(iconPath.file);
+                iconFileHidden.val(iconPath.file);
+            });
+
+            moduleChange(selectIconModule, selectIconFile, iconModuleHidden, iconFileHidden, iconSets, false);
+            var iconFileList = iconSets[selectIconModule.val()];
+            if (!iconFileList || iconFileList.indexOf(iconPath.file) === -1) {
+                selectIconFile.append($("<option disabled></option>").val(iconPath.file).text(iconPath.file));
+            }
+            selectIconFile.val(iconPath.file);
+        }
+    }
+
+    function moduleChange(selectIconModule, selectIconFile, iconModuleHidden, iconFileHidden, iconSets, updateIconFile) {
+        selectIconFile.children().remove();
+        var moduleName = selectIconModule.val();
+        if (moduleName !== null) {
+            iconModuleHidden.val(moduleName);
+        }
+        var iconFileList = iconSets[moduleName];
+        if (iconFileList) {
+            iconFileList.forEach(function(fileName) {
+                if (updateIconFile) {
+                    updateIconFile = false;
+                    iconFileHidden.val(fileName);
+                }
+                selectIconFile.append($("<option></option>").val(fileName).text(fileName));
+            });
+        }
+        selectIconFile.prop("disabled", !iconFileList);
+        selectIconModule.removeClass("input-error");
     }
 
     function showEditDialog(node) {
         var editing_node = node;
+        var isDefaultIcon;
+        var defaultIcon;
         editStack.push(node);
         RED.view.state(RED.state.EDITING);
         var type = node.type;
@@ -901,6 +1007,8 @@ RED.editor = (function() {
                                                 if (outputsChanged) {
                                                     changed = true;
                                                 }
+                                            } else {
+                                                newValue = parseInt(newValue);
                                             }
                                         }
                                         if (editing_node[d] != newValue) {
@@ -977,6 +1085,33 @@ RED.editor = (function() {
                             changes.outputLabels = editing_node.outputLabels;
                             editing_node.outputLabels = newValue;
                             changed = true;
+                        }
+
+                        if (!editing_node._def.defaults || !editing_node._def.defaults.hasOwnProperty("icon")) {
+                            var iconModule = $("#node-settings-icon-module-hidden").val();
+                            var iconFile = $("#node-settings-icon-file-hidden").val();
+                            var icon = (iconModule && iconFile) ? iconModule+"/"+iconFile : "";
+                            if (!isDefaultIcon) {
+                                if (icon !== editing_node.icon) {
+                                    changes.icon = editing_node.icon;
+                                    editing_node.icon = icon;
+                                    changed = true;
+                                }
+                            } else {
+                                if (icon !== defaultIcon) {
+                                    changes.icon = editing_node.icon;
+                                    editing_node.icon = icon;
+                                    changed = true;
+                                } else {
+                                    var iconPath = RED.utils.getDefaultNodeIcon(editing_node._def, editing_node);
+                                    var currentDefaultIcon = iconPath.module+"/"+iconPath.file;
+                                    if (defaultIcon !== currentDefaultIcon) {
+                                        changes.icon = editing_node.icon;
+                                        editing_node.icon = currentDefaultIcon;
+                                        changed = true;
+                                    }
+                                }
+                            }
                         }
 
                         if (changed) {
@@ -1069,6 +1204,13 @@ RED.editor = (function() {
                     ns = "node-red";
                 } else {
                     ns = node._def.set.id;
+                }
+                var iconPath = RED.utils.getDefaultNodeIcon(node._def,node);
+                defaultIcon = iconPath.module+"/"+iconPath.file;
+                if (node.icon && node.icon !== defaultIcon) {
+                    isDefaultIcon = false;
+                } else {
+                    isDefaultIcon = true;
                 }
                 buildEditForm(nodeProperties.content,"dialog-form",type,ns);
                 buildLabelForm(portLabels.content,node);
@@ -1701,6 +1843,7 @@ RED.editor = (function() {
 
         var trayOptions = {
             title: getEditStackTitle(),
+            width: "inherit",
             buttons: [
                 {
                     id: "node-dialog-cancel",
@@ -1859,12 +2002,12 @@ RED.editor = (function() {
 
                 tabs.addTab({
                     id: 'expression-help',
-                    label: 'Function reference',
+                    label: RED._('expressionEditor.functionReference'),
                     content: $("#node-input-expression-tab-help")
                 });
                 tabs.addTab({
                     id: 'expression-tests',
-                    label: 'Test',
+                    label: RED._('expressionEditor.test'),
                     content: $("#node-input-expression-tab-test")
                 });
                 testDataEditor = RED.editor.createEditor({
@@ -1984,9 +2127,6 @@ RED.editor = (function() {
             },
             show: function() {}
         }
-        if (editTrayWidthCache.hasOwnProperty(type)) {
-            trayOptions.width = editTrayWidthCache[type];
-        }
         RED.tray.show(trayOptions);
     }
 
@@ -2013,6 +2153,7 @@ RED.editor = (function() {
         }
         var trayOptions = {
             title: options.title || getEditStackTitle(),
+            width: "inherit",
             buttons: [
                 {
                     id: "node-dialog-cancel",
@@ -2081,9 +2222,6 @@ RED.editor = (function() {
             },
             show: function() {}
         }
-        if (editTrayWidthCache.hasOwnProperty(type)) {
-            trayOptions.width = editTrayWidthCache[type];
-        }
         RED.tray.show(trayOptions);
     }
 
@@ -2097,6 +2235,7 @@ RED.editor = (function() {
 
         var trayOptions = {
             title: options.title || getEditStackTitle(),
+            width: "inherit",
             buttons: [
                 {
                     id: "node-dialog-cancel",
@@ -2136,6 +2275,10 @@ RED.editor = (function() {
                     value: value,
                     mode:"ace/mode/markdown"
                 });
+                if (options.header) {
+                    options.header.appendTo(tray.find('#node-input-markdown-title'));
+                }
+
                 dialogForm.i18n();
             },
             close: function() {
@@ -2143,9 +2286,6 @@ RED.editor = (function() {
                 expressionEditor.destroy();
             },
             show: function() {}
-        }
-        if (editTrayWidthCache.hasOwnProperty(type)) {
-            trayOptions.width = editTrayWidthCache[type];
         }
         RED.tray.show(trayOptions);
     }
@@ -2189,6 +2329,7 @@ RED.editor = (function() {
 
         var trayOptions = {
             title: getEditStackTitle(),
+            width: "inherit",
             buttons: [
                 {
                     id: "node-dialog-cancel",
@@ -2331,9 +2472,6 @@ RED.editor = (function() {
             },
             show: function() {}
         }
-        if (editTrayWidthCache.hasOwnProperty(type)) {
-            trayOptions.width = editTrayWidthCache[type];
-        }
         RED.tray.show(trayOptions);
     }
 
@@ -2364,6 +2502,16 @@ RED.editor = (function() {
             var editor = ace.edit(options.id||options.element);
             editor.setTheme("ace/theme/tomorrow");
             var session = editor.getSession();
+            session.on("changeAnnotation", function () {
+                var annotations = session.getAnnotations() || [];
+                var i = annotations.length;
+                var len = annotations.length;
+                while (i--) {
+                    if (/doctype first\. Expected/.test(annotations[i].text)) { annotations.splice(i, 1); }
+                    else if (/Unexpected End of file\. Expected/.test(annotations[i].text)) { annotations.splice(i, 1); }
+                }
+                if (len > annotations.length) { session.setAnnotations(annotations); }
+            });
             if (options.mode) {
                 session.setMode(options.mode);
             }
@@ -2394,7 +2542,7 @@ RED.editor = (function() {
             if (options.globals) {
                 setTimeout(function() {
                     if (!!session.$worker) {
-                        session.$worker.send("setOptions", [{globals: options.globals, esversion:6}]);
+                        session.$worker.send("setOptions", [{globals: options.globals, esversion:6, sub:true, asi:true, maxerr:1000}]);
                     }
                 },100);
             }

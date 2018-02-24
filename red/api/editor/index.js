@@ -22,7 +22,8 @@ var library = require("./library");
 var info = require("./settings");
 
 var auth = require("../auth");
-var needsPermission = auth.needsPermission;
+var nodes = require("../admin/nodes"); // TODO: move /icons into here
+var needsPermission;
 var runtime;
 var log;
 var apiUtil = require("../util");
@@ -40,6 +41,7 @@ module.exports = {
     init: function(server, _runtime) {
         runtime = _runtime;
         log = runtime.log;
+        needsPermission = auth.needsPermission;
         var settings = runtime.settings;
         if (!settings.disableEditor) {
             info.init(runtime);
@@ -59,6 +61,8 @@ module.exports = {
                 });
             }
             editorApp.get("/",ensureRuntimeStarted,ui.ensureSlash,ui.editor);
+
+            editorApp.get("/icons",needsPermission("nodes.read"),nodes.getIcons,apiUtil.errorHandler);
             editorApp.get("/icons/:module/:icon",ui.icon);
             editorApp.get("/icons/:scope/:module/:icon",ui.icon);
 
@@ -97,6 +101,10 @@ module.exports = {
             // User Settings
             editorApp.post("/settings/user",needsPermission("settings.write"),info.updateUserSettings,apiUtil.errorHandler);
 
+            // SSH keys
+            var sshkeys = require("./sshkeys");
+            sshkeys.init(runtime);
+            editorApp.use("/settings/user/keys",sshkeys.app());
 
             return editorApp;
         }

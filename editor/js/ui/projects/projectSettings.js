@@ -40,11 +40,16 @@ RED.projects.settings = (function() {
         if (settingsVisible) {
             return;
         }
+        if (!RED.user.hasPermission("projects.write")) {
+            RED.notify(RED._("user.errors.notAuthorized"),"error");
+            return;
+        }
+
         settingsVisible = true;
         var tabContainer;
 
         var trayOptions = {
-            title: "Project Information",// RED._("menu.label.userSettings"),, // TODO: nls
+            title: "Project Settings",// RED._("menu.label.userSettings"),, // TODO: nls
             buttons: [
                 {
                     id: "node-dialog-ok",
@@ -114,6 +119,7 @@ RED.projects.settings = (function() {
     function editDescription(activeProject, container) {
         RED.editor.editMarkdown({
             title: RED._('sidebar.project.editDescription'),
+            header: $('<span><i class="fa fa-book"></i> README.md</span>'),
             value: activeProject.description,
             complete: function(v) {
                 container.empty();
@@ -134,9 +140,11 @@ RED.projects.settings = (function() {
                         },
                         200: function(data) {
                             done(null,data);
+                            RED.sidebar.versionControl.refresh(true);
                         },
                         400: {
-                            'unexpected_error': function(error) {
+                            '*': function(error) {
+                                utils.reportUnexpectedError(error);
                                 done(error,null);
                             }
                         },
@@ -163,7 +171,7 @@ RED.projects.settings = (function() {
         var editButton = container.prev();
         editButton.hide();
         container.empty();
-        var bg = $('<span class="button-group" style="position: relative; float: right; margin-right:0;"></span>').appendTo(container);
+        var bg = $('<span class="button-row" style="position: relative; float: right; margin-right:0;"></span>').appendTo(container);
         var input = $('<input type="text" style="width: calc(100% - 150px); margin-right: 10px;">').val(summary||"").appendTo(container);
         $('<button class="editor-button">Cancel</button>')
             .appendTo(bg)
@@ -197,10 +205,12 @@ RED.projects.settings = (function() {
                             done(error,null);
                         },
                         200: function(data) {
+                            RED.sidebar.versionControl.refresh(true);
                             done(null,data);
                         },
                         400: {
-                            'unexpected_error': function(error) {
+                            '*': function(error) {
+                                utils.reportUnexpectedError(error);
                                 done(error,null);
                             }
                         },
@@ -224,12 +234,14 @@ RED.projects.settings = (function() {
         var summary = $('<div style="position: relative">').appendTo(pane);
         var summaryContent = $('<div></div>',{style:"color: #999"}).appendTo(summary);
         updateProjectSummary(activeProject.summary, summaryContent);
-        $('<button class="editor-button editor-button-small" style="float: right;">edit</button>')
-            .prependTo(summary)
-            .click(function(evt) {
-                evt.preventDefault();
-                editSummary(activeProject, activeProject.summary, summaryContent);
-            });
+        if (RED.user.hasPermission("projects.write")) {
+            $('<button class="editor-button editor-button-small" style="float: right;">edit description</button>')
+                .prependTo(summary)
+                .click(function(evt) {
+                    evt.preventDefault();
+                    editSummary(activeProject, activeProject.summary, summaryContent);
+                });
+        }
         $('<hr>').appendTo(pane);
 
         var description = $('<div class="node-help" style="position: relative"></div>').appendTo(pane);
@@ -237,13 +249,14 @@ RED.projects.settings = (function() {
 
         updateProjectDescription(activeProject, descriptionContent);
 
-        $('<button class="editor-button editor-button-small" style="float: right;">edit</button>')
-            .prependTo(description)
-            .click(function(evt) {
-                evt.preventDefault();
-                editDescription(activeProject, descriptionContent);
-            });
-
+        if (RED.user.hasPermission("projects.write")) {
+            $('<button class="editor-button editor-button-small" style="float: right;">edit README.md</button>')
+                .prependTo(description)
+                .click(function(evt) {
+                    evt.preventDefault();
+                    editDescription(activeProject, descriptionContent);
+                });
+        }
         return pane;
     }
     function updateProjectDependencies(activeProject,depsList) {
@@ -252,14 +265,16 @@ RED.projects.settings = (function() {
         var totalCount = 0;
         var unknownCount = 0;
         var unusedCount = 0;
+        var notInstalledCount = 0;
 
         for (var m in modulesInUse) {
             if (modulesInUse.hasOwnProperty(m)) {
                 depsList.editableList('addItem',{
-                    module: modulesInUse[m].module,
+                    id: modulesInUse[m].module,
                     version: modulesInUse[m].version,
                     count: modulesInUse[m].count,
-                    known: activeProject.dependencies.hasOwnProperty(m)
+                    known: activeProject.dependencies.hasOwnProperty(m),
+                    installed: true
                 });
                 totalCount++;
                 if (modulesInUse[m].count === 0) {
@@ -274,29 +289,69 @@ RED.projects.settings = (function() {
         if (activeProject.dependencies) {
             for (var m in activeProject.dependencies) {
                 if (activeProject.dependencies.hasOwnProperty(m) && !modulesInUse.hasOwnProperty(m)) {
+                    var installed = !!RED.nodes.registry.getModule(m);
                     depsList.editableList('addItem',{
-                        module: m,
+                        id: m,
                         version: activeProject.dependencies[m], //RED.nodes.registry.getModule(module).version,
                         count: 0,
-                        known: true
+                        known: true,
+                        installed: installed
                     });
                     totalCount++;
-                    unusedCount++;
+                    if (installed) {
+                        unusedCount++;
+                    } else {
+                        notInstalledCount++;
+                    }
                 }
             }
         }
-        if (unknownCount > 0) {
-            depsList.editableList('addItem',{index:1, label:"Unlisted dependencies"}); // TODO: nls
-        }
-        if (unusedCount > 0) {
-            depsList.editableList('addItem',{index:3, label:"Unused dependencies"}); // TODO: nls
-        }
+        // if (notInstalledCount > 0) {
+        //     depsList.editableList('addItem',{index:1, label:"Missing dependencies"}); // TODO: nls
+        // }
+        // if (unknownCount > 0) {
+        //     depsList.editableList('addItem',{index:1, label:"Unlisted dependencies"}); // TODO: nls
+        // }
+        // if (unusedCount > 0) {
+        //     depsList.editableList('addItem',{index:3, label:"Unused dependencies"}); // TODO: nls
+        // }
         if (totalCount === 0) {
             depsList.editableList('addItem',{index:0, label:"None"}); // TODO: nls
         }
 
     }
 
+    function saveDependencies(depsList,container,dependencies,complete) {
+        var activeProject = RED.projects.getActiveProject();
+        var spinner = utils.addSpinnerOverlay(container).addClass('projects-dialog-spinner-contain');
+        var done = function(err,res) {
+            spinner.remove();
+            if (err) {
+                return complete(err);
+            }
+            activeProject.dependencies = dependencies;
+            RED.sidebar.versionControl.refresh(true);
+            complete();
+        }
+        utils.sendRequest({
+            url: "projects/"+activeProject.name,
+            type: "PUT",
+            responses: {
+                0: function(error) {
+                    done(error,null);
+                },
+                200: function(data) {
+                    RED.sidebar.versionControl.refresh(true);
+                    done(null,data);
+                },
+                400: {
+                    '*': function(error) {
+                        done(error,null);
+                    }
+                },
+            }
+        },{dependencies:dependencies});
+    }
     function editDependencies(activeProject,depsJSON,container,depsList) {
         var json = depsJSON||JSON.stringify(activeProject.dependencies||{},"",4);
         if (json === "{}") {
@@ -309,33 +364,12 @@ RED.projects.settings = (function() {
             complete: function(v) {
                 try {
                     var parsed = JSON.parse(v);
-                    var spinner = utils.addSpinnerOverlay(container);
-
-                    var done = function(err,res) {
+                    saveDependencies(depsList,container,parsed,function(err) {
                         if (err) {
                             return editDependencies(activeProject,v,container,depsList);
                         }
                         activeProject.dependencies = parsed;
                         updateProjectDependencies(activeProject,depsList);
-                    }
-                    utils.sendRequest({
-                        url: "projects/"+activeProject.name,
-                        type: "PUT",
-                        responses: {
-                            0: function(error) {
-                                done(error,null);
-                            },
-                            200: function(data) {
-                                done(null,data);
-                            },
-                            400: {
-                                'unexpected_error': function(error) {
-                                    done(error,null);
-                                }
-                            },
-                        }
-                    },{dependencies:parsed}).always(function() {
-                        spinner.remove();
                     });
                 } catch(err) {
                     editDependencies(activeProject,v,container,depsList);
@@ -346,12 +380,14 @@ RED.projects.settings = (function() {
 
     function createDependenciesPane(activeProject) {
         var pane = $('<div id="project-settings-tab-deps" class="project-settings-tab-pane node-help"></div>');
-        $('<button class="editor-button editor-button-small" style="margin-top:10px;float: right;">edit</button>')
-            .appendTo(pane)
-            .click(function(evt) {
-                evt.preventDefault();
-                editDependencies(activeProject,null,pane,depsList)
-            });
+        if (RED.user.hasPermission("projects.write")) {
+            $('<button class="editor-button editor-button-small" style="margin-top:10px;float: right;">edit</button>')
+                .appendTo(pane)
+                .click(function(evt) {
+                    evt.preventDefault();
+                    editDependencies(activeProject,null,pane,depsList)
+                });
+        }
         var depsList = $("<ol>",{style:"position: absolute;top: 60px;bottom: 20px;left: 20px;right: 20px;"}).appendTo(pane);
         depsList.editableList({
             addButton: false,
@@ -365,57 +401,119 @@ RED.projects.settings = (function() {
                         row.parent().addClass("palette-module-section");
                     }
                     headerRow.text(entry.label);
-                    if (entry.index === 1) {
-                        var addButton = $('<button class="editor-button editor-button-small palette-module-button">add to project</button>').appendTo(headerRow).click(function(evt) {
-                            evt.preventDefault();
-                            var deps = $.extend(true, {}, activeProject.dependencies);
-                            for (var m in modulesInUse) {
-                                if (modulesInUse.hasOwnProperty(m) && !modulesInUse[m].known) {
-                                    deps[m] = modulesInUse[m].version;
-                                }
-                            }
-                            editDependencies(activeProject,JSON.stringify(deps,"",4),pane,depsList);
-                        });
-                    } else if (entry.index === 3) {
-                        var removeButton = $('<button class="editor-button editor-button-small palette-module-button">remove from project</button>').appendTo(headerRow).click(function(evt) {
-                            evt.preventDefault();
-                            var deps = $.extend(true, {}, activeProject.dependencies);
-                            for (var m in activeProject.dependencies) {
-                                if (activeProject.dependencies.hasOwnProperty(m) && !modulesInUse.hasOwnProperty(m)) {
-                                    delete deps[m];
-                                }
-                            }
-                            editDependencies(activeProject,JSON.stringify(deps,"",4),pane,depsList);
-                        });
-                    }
+                    // if (RED.user.hasPermission("projects.write")) {
+                    //     if (entry.index === 1) {
+                    //         var addButton = $('<button class="editor-button editor-button-small palette-module-button">add to project</button>').appendTo(headerRow).click(function(evt) {
+                    //             evt.preventDefault();
+                    //             var deps = $.extend(true, {}, activeProject.dependencies);
+                    //             for (var m in modulesInUse) {
+                    //                 if (modulesInUse.hasOwnProperty(m) && !modulesInUse[m].known) {
+                    //                     deps[m] = modulesInUse[m].version;
+                    //                 }
+                    //             }
+                    //             editDependencies(activeProject,JSON.stringify(deps,"",4),pane,depsList);
+                    //         });
+                    //     } else if (entry.index === 3) {
+                    //         var removeButton = $('<button class="editor-button editor-button-small palette-module-button">remove from project</button>').appendTo(headerRow).click(function(evt) {
+                    //             evt.preventDefault();
+                    //             var deps = $.extend(true, {}, activeProject.dependencies);
+                    //             for (var m in activeProject.dependencies) {
+                    //                 if (activeProject.dependencies.hasOwnProperty(m) && !modulesInUse.hasOwnProperty(m)) {
+                    //                     delete deps[m];
+                    //                 }
+                    //             }
+                    //             editDependencies(activeProject,JSON.stringify(deps,"",4),pane,depsList);
+                    //         });
+                    //     }
+                    // }
                 } else {
                     headerRow.addClass("palette-module-header");
-                    headerRow.toggleClass("palette-module-unused",entry.count === 0);
+                    if (!entry.installed) {
+                        headerRow.addClass("palette-module-not-installed");
+                    } else if (entry.count === 0) {
+                        headerRow.addClass("palette-module-unused");
+                    } else if (!entry.known) {
+                        headerRow.addClass("palette-module-unknown");
+                    }
+
                     entry.element = headerRow;
                     var titleRow = $('<div class="palette-module-meta palette-module-name"></div>').appendTo(headerRow);
-                    var icon = $('<i class="fa fa-'+(entry.known?'cube':'warning')+'"></i>').appendTo(titleRow);
+                    var iconClass = "fa-cube";
+                    if (!entry.installed) {
+                        iconClass = "fa-warning";
+                    }
+                    var icon = $('<i class="fa '+iconClass+'"></i>').appendTo(titleRow);
                     entry.icon = icon;
-                    $('<span>').html(entry.module).appendTo(titleRow);
+                    $('<span>').html(entry.id).appendTo(titleRow);
                     var metaRow = $('<div class="palette-module-meta palette-module-version"><i class="fa fa-tag"></i></div>').appendTo(headerRow);
                     var versionSpan = $('<span>').html(entry.version).appendTo(metaRow);
-                    if (!entry.known) {
-                        headerRow.addClass("palette-module-unknown");
-                    } else if (entry.known && entry.count === 0) {
-
+                    metaRow = $('<div class="palette-module-meta"></div>').appendTo(headerRow);
+                    var buttons = $('<div class="palette-module-button-group"></div>').appendTo(metaRow);
+                    if (RED.user.hasPermission("projects.write")) {
+                        if (!entry.installed && RED.settings.theme('palette.editable') !== false) {
+                            $('<a href="#" class="editor-button editor-button-small">install</a>').appendTo(buttons)
+                                .click(function(evt) {
+                                    evt.preventDefault();
+                                    RED.palette.editor.install(entry,row,function(err) {
+                                        if (!err) {
+                                            entry.installed = true;
+                                            var spinner = RED.utils.addSpinnerOverlay(row,true);
+                                            setTimeout(function() {
+                                                depsList.editableList('removeItem',entry);
+                                                refreshModuleInUseCounts();
+                                                entry.count = modulesInUse[entry.id].count;
+                                                depsList.editableList('addItem',entry);
+                                            },500);
+                                        }
+                                    });
+                                })
+                        } else if (entry.known && entry.count === 0) {
+                            $('<a href="#" class="editor-button editor-button-small">remove from project</a>').appendTo(buttons)
+                                .click(function(evt) {
+                                    evt.preventDefault();
+                                    var deps = $.extend(true, {}, activeProject.dependencies);
+                                    delete deps[entry.id];
+                                    saveDependencies(depsList,row,deps,function(err) {
+                                        if (!err) {
+                                            row.fadeOut(200,function() {
+                                                depsList.editableList('removeItem',entry);
+                                            });
+                                        } else {
+                                            console.log(err);
+                                        }
+                                    });
+                                });
+                        } else if (!entry.known) {
+                            $('<a href="#" class="editor-button editor-button-small">add to project</a>').appendTo(buttons)
+                                .click(function(evt) {
+                                    evt.preventDefault();
+                                    var deps = $.extend(true, {}, activeProject.dependencies);
+                                    deps[entry.id] = modulesInUse[entry.id].version;
+                                    saveDependencies(depsList,row,deps,function(err) {
+                                        if (!err) {
+                                            buttons.remove();
+                                            headerRow.removeClass("palette-module-unknown");
+                                        } else {
+                                            console.log(err);
+                                        }
+                                    });
+                                });
+                        }
                     }
                 }
             },
             sort: function(A,B) {
-                if (A.index && B.index) {
-                    return A.index - B.index;
-                }
-                var Acategory = A.index?A.index:(A.known?(A.count>0?0:4):2);
-                var Bcategory = B.index?B.index:(B.known?(B.count>0?0:4):2);
-                if (Acategory === Bcategory) {
-                    return A.module.localeCompare(B.module);
-                } else {
-                    return Acategory - Bcategory;
-                }
+                return A.id.localeCompare(B.id);
+                // if (A.index && B.index) {
+                //     return A.index - B.index;
+                // }
+                // var Acategory = A.index?A.index:(A.known?(A.count>0?0:4):2);
+                // var Bcategory = B.index?B.index:(B.known?(B.count>0?0:4):2);
+                // if (Acategory === Bcategory) {
+                //     return A.id.localeCompare(B.id);
+                // } else {
+                //     return Acategory - Bcategory;
+                // }
             }
         });
 
@@ -627,26 +725,27 @@ RED.projects.settings = (function() {
     function createFilesSection(activeProject,pane) {
         var title = $('<h3></h3>').text("Files").appendTo(pane);
         var filesContainer = $('<div class="user-settings-section"></div>').appendTo(pane);
-        var editFilesButton = $('<button class="editor-button editor-button-small" style="float: right;">edit</button>')
-            .appendTo(title)
-            .click(function(evt) {
-                evt.preventDefault();
-                formButtons.show();
-                editFilesButton.hide();
-                flowFileLabelText.hide();
-                flowFileInput.show();
-                flowFileInputSearch.show();
-                credFileLabel.hide();
-                credFileInput.show();
-                flowFileInput.focus();
-                // credentialStateLabel.parent().hide();
-                credentialStateLabel.addClass("uneditable-input");
-                $(".user-settings-row-credentials").show();
-                credentialStateLabel.css('height','auto');
-                credentialFormRows.hide();
-                credentialSecretButtons.show();
-            });
-
+        if (RED.user.hasPermission("projects.write")) {
+            var editFilesButton = $('<button class="editor-button editor-button-small" style="float: right;">edit</button>')
+                .appendTo(title)
+                .click(function(evt) {
+                    evt.preventDefault();
+                    formButtons.show();
+                    editFilesButton.hide();
+                    flowFileLabelText.hide();
+                    flowFileInput.show();
+                    flowFileInputSearch.show();
+                    credFileLabel.hide();
+                    credFileInput.show();
+                    flowFileInput.focus();
+                    // credentialStateLabel.parent().hide();
+                    credentialStateLabel.addClass("uneditable-input");
+                    $(".user-settings-row-credentials").show();
+                    credentialStateLabel.css('height','auto');
+                    credentialFormRows.hide();
+                    credentialSecretButtons.show();
+                });
+        }
         var row;
 
         // Flow files
@@ -850,7 +949,7 @@ RED.projects.settings = (function() {
 
         }
 
-        var formButtons = $('<span class="button-group" style="position: relative; float: right; margin-right:0;"></span>').hide().appendTo(filesContainer);
+        var formButtons = $('<span class="button-row" style="position: relative; float: right; margin-right:0;"></span>').hide().appendTo(filesContainer);
         $('<button class="editor-button">Cancel</button>')
             .appendTo(formButtons)
             .click(function(evt) {
@@ -865,7 +964,7 @@ RED.projects.settings = (function() {
                 var done = function(err) {
                     spinner.remove();
                     if (err) {
-                        console.log(err);
+                        utils.reportUnexpectedError(err);
                         return;
                     }
                     flowFileLabelText.text(flowFileInput.val());
@@ -900,15 +999,12 @@ RED.projects.settings = (function() {
                         },
                         200: function(data) {
                             activeProject = data;
+                            RED.sidebar.versionControl.refresh(true);
                             updateForm();
                             done();
                         },
                         400: {
                             'credentials_load_failed': function(error) {
-                                done(error);
-                            },
-                            'unexpected_error': function(error) {
-                                console.log(error);
                                 done(error);
                             },
                             'missing_current_credential_key':  function(error) {
@@ -921,11 +1017,16 @@ RED.projects.settings = (function() {
                                     autoClose: 3000
                                 }).open();
                                 done(error);
+                            },
+                            '*': function(error) {
+                                done(error);
                             }
                         },
                     }
                 },payload).always(function() {
-                    RED.deploy.setDeployInflight(false);
+                    setTimeout(function() {
+                        RED.deploy.setDeployInflight(false);
+                    },500);
                 });
             });
         var updateForm = function() {
@@ -939,223 +1040,396 @@ RED.projects.settings = (function() {
                 credentialStateLabel.find(".user-settings-credentials-state-icon").removeClass().addClass("user-settings-credentials-state-icon fa fa-unlock");
                 credentialStateLabel.find(".user-settings-credentials-state").text("Encryption disabled");
             }
-            credentialSecretResetButton.toggleClass('disabled',!activeProject.settings.credentialsEncrypted);
-            credentialSecretResetButton.prop('disabled',!activeProject.settings.credentialsEncrypted);
+            credentialSecretResetButton.toggleClass('disabled',!activeProject.settings.credentialSecretInvalid && !activeProject.settings.credentialsEncrypted);
+            credentialSecretResetButton.prop('disabled',!activeProject.settings.credentialSecretInvalid && !activeProject.settings.credentialsEncrypted);
         }
 
         checkFiles();
         updateForm();
     }
 
-    function createRemoteRepositorySection(activeProject,pane) {
-        var title = $('<h3></h3>').text("Version Control").appendTo(pane);
-        var editRepoButton = $('<button class="editor-button editor-button-small" style="float: right;">edit</button>')
-            .appendTo(title)
-            .click(function(evt) {
-                editRepoButton.hide();
-                formButtons.show();
+    function createLocalBranchListSection(activeProject,pane) {
+        var localBranchContainer = $('<div class="user-settings-section"></div>').appendTo(pane);
+        $('<h4></h4>').text("Branches").appendTo(localBranchContainer);
 
-                $('.projects-dialog-remote-list-entry-delete').show();
-                remoteListAddButton.show();
-
-                gitUsernameLabel.hide();
-                gitUsernameInput.show();
-                gitEmailLabel.hide();
-                gitEmailInput.show();
-            });
-
-        var repoContainer = $('<div class="user-settings-section"></div>').appendTo(pane);
-        var subtitle = $('<h4></h4>').text("Committer Details").appendTo(repoContainer);
-        $('<div style="display: inline-block; margin-left: 20px;"><small style="color:#aaa;"></small></div>').appendTo(subtitle).find('small').text("Leave blank to use system default");
-
-        var row = $('<div class="user-settings-row"></div>').appendTo(repoContainer);
-        $('<label for=""></label>').text('Username').appendTo(row);
-        var gitUsernameLabel = $('<div class="uneditable-input">').appendTo(row);
-        var gitUsernameInput = $('<input type="text">').hide().appendTo(row);
-
-        row = $('<div class="user-settings-row"></div>').appendTo(repoContainer);
-        $('<label for=""></label>').text('Email').appendTo(row);
-        var gitEmailLabel = $('<div class="uneditable-input">').appendTo(row);
-        var gitEmailInput = $('<input type="text">').hide().appendTo(row);
-
-        if (activeProject.git.user) {
-            gitUsernameLabel.text(activeProject.git.user.name);
-            gitUsernameInput.val(activeProject.git.user.name);
-
-            gitEmailLabel.text(activeProject.git.user.email);
-            gitEmailInput.val(activeProject.git.user.email);
-        }
+        var row = $('<div class="user-settings-row projects-dialog-list"></div>').appendTo(localBranchContainer);
 
 
-        var grTitle = $('<h4></h4>').text("Git remotes").appendTo(repoContainer);
-
-
-        row = $('<div class="user-settings-row projects-dialog-remote-list"></div>').appendTo(repoContainer);
-        var remotesList = $('<ol>').appendTo(row);
-        remotesList.editableList({
-            addButton: 'add remote repository',
+        var branchList = $('<ol>').appendTo(row).editableList({
             height: 'auto',
-            addItem: function(outer,index,entry) {
-
-                var header = $('<div class="projects-dialog-remote-list-entry-header"></div>').appendTo(outer);
-                entry.header = $('<span>').text(entry.name||"Add new remote").appendTo(header);
-                var body = $('<div>').appendTo(outer);
-                entry.body = body;
-                if (entry.name) {
-                    entry.removeButton = $('<button class="editor-button editor-button-small projects-dialog-remote-list-entry-delete">remove</button>')
-                        .hide()
-                        .appendTo(header)
-                        .click(function(e) {
-                            entry.removed = true;
-                            body.fadeOut(100);
-                            entry.header.css("text-decoration","line-through")
-                            entry.header.css("font-style","italic")
-                            $(this).hide();
-                        });
-                    if (entry.urls.fetch === entry.urls.push) {
-                        row = $('<div class="user-settings-row"></div>').appendTo(body);
-                        $('<label for=""></label>').text('URL').appendTo(row);
-                        $('<div class="uneditable-input">').text(entry.urls.fetch).appendTo(row);
-                    } else {
-                        row = $('<div class="user-settings-row"></div>').appendTo(body);
-                        $('<label for=""></label>').text('Fetch URL').appendTo(row);
-                        $('<div class="uneditable-input">').text(entry.urls.fetch).appendTo(row);
-                        row = $('<div class="user-settings-row"></div>').appendTo(body);
-                        $('<label for=""></label>').text('Push URL').appendTo(row);
-                        $('<div class="uneditable-input">').text(entry.urls.push).appendTo(row);
-                    }
-                } else {
-                    row = $('<div class="user-settings-row"></div>').appendTo(body);
-                    $('<label for=""></label>').text('Remote name').appendTo(row);
-                    entry.nameInput = $('<input type="text">').appendTo(row);
-
-                    row = $('<div class="user-settings-row"></div>').appendTo(body);
-                    var fetchLabel = $('<label for=""></label>').text('URL').appendTo(row);
-                    entry.urlInput = $('<input type="text">').appendTo(row);
+            addButton: false,
+            scrollOnAdd: false,
+            addItem: function(row,index,entry) {
+                var container = $('<div class="projects-dialog-list-entry">').appendTo(row);
+                if (entry.empty) {
+                    container.addClass('red-ui-search-empty');
+                    container.text("No branches");
+                    return;
                 }
+                if (entry.current) {
+                    container.addClass("current");
+                }
+                $('<span class="entry-icon"><i class="fa fa-code-fork"></i></span>').appendTo(container);
+                var content = $('<span>').appendTo(container);
+                var topRow = $('<div>').appendTo(content);
+                $('<span class="entry-name">').text(entry.name).appendTo(topRow);
+                if (entry.commit) {
+                    $('<span class="entry-detail">').text(entry.commit.sha).appendTo(topRow);
+                }
+                if (entry.remote) {
+                    var bottomRow = $('<div>').appendTo(content);
+
+                    $('<span class="entry-detail entry-remote-name">').text(entry.remote||"").appendTo(bottomRow);
+                    if (entry.status.ahead+entry.status.behind > 0) {
+                        $('<span class="entry-detail">'+
+                            '<i class="fa fa-long-arrow-up"></i> <span>'+entry.status.ahead+'</span> '+
+                            '<i class="fa fa-long-arrow-down"></i> <span>'+entry.status.behind+'</span>'+
+                            '</span>').appendTo(bottomRow);
+                    }
+                }
+
+                if (!entry.current) {
+                    var tools = $('<span class="entry-tools">').appendTo(container);
+                    $('<button class="editor-button editor-button-small"><i class="fa fa-trash"></i></button>')
+                        .appendTo(tools)
+                        .click(function(e) {
+                            e.preventDefault();
+                            var spinner = utils.addSpinnerOverlay(row).addClass('projects-dialog-spinner-contain');
+                            var notification = RED.notify("Are you sure you want to delete the local branch '"+entry.name+"'? This cannot be undone.", {
+                                type: "warning",
+                                modal: true,
+                                fixed: true,
+                                buttons: [
+                                    {
+                                        text: RED._("common.label.cancel"),
+                                        click: function() {
+                                            spinner.remove();
+                                            notification.close();
+                                        }
+                                    },{
+                                        text: 'Delete branch',
+                                        click: function() {
+                                            notification.close();
+                                            var url = "projects/"+activeProject.name+"/branches/"+entry.name;
+                                            var options = {
+                                                url: url,
+                                                type: "DELETE",
+                                                responses: {
+                                                    200: function(data) {
+                                                        row.fadeOut(200,function() {
+                                                            branchList.editableList('removeItem',entry);
+                                                            spinner.remove();
+                                                        });
+                                                    },
+                                                    400: {
+                                                        'git_delete_branch_unmerged': function(error) {
+                                                            notification = RED.notify("The local branch '"+entry.name+"' has unmerged changes that will be lost. Are you sure you want to delete it?", {
+                                                                type: "warning",
+                                                                modal: true,
+                                                                fixed: true,
+                                                                buttons: [
+                                                                    {
+                                                                        text: RED._("common.label.cancel"),
+                                                                        click: function() {
+                                                                            spinner.remove();
+                                                                            notification.close();
+                                                                        }
+                                                                    },{
+                                                                        text: 'Delete unmerged branch',
+                                                                        click: function() {
+                                                                            options.url += "?force=true";
+                                                                            notification.close();
+                                                                            utils.sendRequest(options);
+                                                                        }
+                                                                    }
+                                                                ]
+                                                            });
+                                                        },
+                                                        '*': function(error) {
+                                                            utils.reportUnexpectedError(error);
+                                                            spinner.remove();
+                                                        }
+                                                    },
+                                                }
+                                            }
+                                            utils.sendRequest(options);
+                                        }
+                                    }
+
+                                ]
+                            })
+                        })
+                }
+
             }
         });
 
-        var remoteListAddButton = row.find(".red-ui-editableList-addButton").hide();
+        $.getJSON("projects/"+activeProject.name+"/branches",function(result) {
+            if (result.branches) {
+                if (result.branches.length > 0) {
+                    result.branches.sort(function(A,B) {
+                        if (A.current) { return -1 }
+                        if (B.current) { return 1 }
+                        return A.name.localeCompare(B.name);
+                    });
+                    result.branches.forEach(function(branch) {
+                        branchList.editableList('addItem',branch);
+                    })
+                } else {
+                    branchList.editableList('addItem',{empty:true});
+                }
+            }
+        })
+    }
+
+    function createRemoteRepositorySection(activeProject,pane) {
+        $('<h3></h3>').text("Version Control").appendTo(pane);
+
+        createLocalBranchListSection(activeProject,pane);
+
+        var repoContainer = $('<div class="user-settings-section"></div>').appendTo(pane);
+        var title = $('<h4></h4>').text("Git remotes").appendTo(repoContainer);
+
+        var editRepoButton = $('<button class="editor-button editor-button-small" style="float: right; margin-right: 10px;">add remote</button>')
+            .appendTo(title)
+            .click(function(evt) {
+                editRepoButton.attr('disabled',true);
+                addRemoteDialog.slideDown(200, function() {
+                    addRemoteDialog[0].scrollIntoView();
+                    if (isEmpty) {
+                        remoteNameInput.val('origin');
+                        remoteURLInput.focus();
+                    } else {
+                        remoteNameInput.focus();
+                    }
+                    validateForm();
+                });
+            });
+
+
+        var emptyItem = { empty: true };
+        var isEmpty = true;
+        var row = $('<div class="user-settings-row"></div>').appendTo(repoContainer);
+        var addRemoteDialog = $('<div class="projects-dialog-list-dialog"></div>').hide().appendTo(row);
+        row = $('<div class="user-settings-row projects-dialog-list"></div>').appendTo(repoContainer);
+        var remotesList = $('<ol>').appendTo(row);
+        remotesList.editableList({
+            addButton: false,
+            height: 'auto',
+            addItem: function(row,index,entry) {
+
+                var container = $('<div class="projects-dialog-list-entry">').appendTo(row);
+                if (entry.empty) {
+                    container.addClass('red-ui-search-empty');
+                    container.text("No remotes");
+                    return;
+                } else {
+                    $('<span class="entry-icon"><i class="fa fa-globe"></i></span>').appendTo(container);
+                    var content = $('<span>').appendTo(container);
+                    $('<div class="entry-name">').text(entry.name).appendTo(content);
+                    if (entry.urls.fetch === entry.urls.push) {
+                        $('<div class="entry-detail">').text(entry.urls.fetch).appendTo(content);
+                    } else {
+                        $('<div class="entry-detail">').text("fetch: "+entry.urls.fetch).appendTo(content);
+                        $('<div class="entry-detail">').text("push: "+entry.urls.push).appendTo(content);
+
+                    }
+                    var tools = $('<span class="entry-tools">').appendTo(container);
+                    $('<button class="editor-button editor-button-small"><i class="fa fa-trash"></i></button>')
+                        .appendTo(tools)
+                        .click(function(e) {
+                            e.preventDefault();
+                            var spinner = utils.addSpinnerOverlay(row).addClass('projects-dialog-spinner-contain');
+                            var notification = RED.notify("Are you sure you want to delete the remote '"+entry.name+"'?", {
+                                type: "warning",
+                                modal: true,
+                                fixed: true,
+                                buttons: [
+                                    {
+                                        text: RED._("common.label.cancel"),
+                                        click: function() {
+                                            spinner.remove();
+                                            notification.close();
+                                        }
+                                    },{
+                                        text: 'Delete remote',
+                                        click: function() {
+                                            notification.close();
+                                            var url = "projects/"+activeProject.name+"/remotes/"+entry.name;
+                                            var options = {
+                                                url: url,
+                                                type: "DELETE",
+                                                responses: {
+                                                    200: function(data) {
+                                                        row.fadeOut(200,function() {
+                                                            remotesList.editableList('removeItem',entry);
+                                                            setTimeout(spinner.remove, 100);
+                                                            if (data.remotes.length === 0) {
+                                                                delete activeProject.git.remotes;
+                                                                isEmpty = true;
+                                                                remotesList.editableList('addItem',emptyItem);
+                                                            } else {
+                                                                activeProject.git.remotes = {};
+                                                                data.remotes.forEach(function(remote) {
+                                                                    var name = remote.name;
+                                                                    delete remote.name;
+                                                                    activeProject.git.remotes[name] = remote;
+                                                                });
+                                                            }
+                                                            RED.sidebar.versionControl.refresh();
+                                                        });
+                                                    },
+                                                    400: {
+                                                        '*': function(error) {
+                                                            utils.reportUnexpectedError(error);
+                                                            spinner.remove();
+                                                        }
+                                                    },
+                                                }
+                                            }
+                                            utils.sendRequest(options);
+                                        }
+                                    }
+
+                                ]
+                            })
+                        });
+                }
+
+
+            }
+        });
+
+        var validateForm = function() {
+            var validName = /^[a-zA-Z0-9\-_]+$/.test(remoteNameInput.val());
+            var repo = remoteURLInput.val();
+            // var validRepo = /^(?:file|git|ssh|https?|[\d\w\.\-_]+@[\w\.]+):(?:\/\/)?[\w\.@:\/~_-]+(?:\.git)?(?:\/?|\#[\d\w\.\-_]+?)$/.test(remoteURLInput.val());
+            var validRepo = repo.length > 0 && !/\s/.test(repo);
+            if (/^https?:\/\/[^/]+@/i.test(repo)) {
+                remoteURLLabel.text("Do not include the username/password in the url");
+                validRepo = false;
+            } else {
+                remoteURLLabel.text("https://, ssh:// or file://");
+            }
+            saveButton.attr('disabled',(!validName || !validRepo))
+            remoteNameInput.toggleClass('input-error',remoteNameInputChanged&&!validName);
+            remoteURLInput.toggleClass('input-error',remoteURLInputChanged&&!validRepo);
+            if (popover) {
+                popover.close();
+                popover = null;
+            }
+        };
+        var popover;
+        var remoteNameInputChanged = false;
+        var remoteURLInputChanged = false;
+
+        $('<div class="projects-dialog-list-dialog-header">').text('Add remote').appendTo(addRemoteDialog);
+
+        row = $('<div class="user-settings-row"></div>').appendTo(addRemoteDialog);
+        $('<label for=""></label>').text('Remote name').appendTo(row);
+        var remoteNameInput = $('<input type="text">').appendTo(row).on("change keyup paste",function() {
+            remoteNameInputChanged = true;
+            validateForm();
+        });
+        $('<label class="projects-edit-form-sublabel"><small>Must contain only A-Z 0-9 _ -</small></label>').appendTo(row).find("small");
+        row = $('<div class="user-settings-row"></div>').appendTo(addRemoteDialog);
+        $('<label for=""></label>').text('URL').appendTo(row);
+        var remoteURLInput = $('<input type="text">').appendTo(row).on("change keyup paste",function() {
+            remoteURLInputChanged = true;
+            validateForm()
+        });
+        var remoteURLLabel = $('<label class="projects-edit-form-sublabel"><small>https://, ssh:// or file://</small></label>').appendTo(row).find("small");
 
         var hideEditForm = function() {
-            editRepoButton.show();
-            formButtons.hide();
-            $('.projects-dialog-remote-list-entry-delete').hide();
-            remoteListAddButton.hide();
-
-            gitUsernameLabel.show();
-            gitUsernameInput.hide();
-            gitEmailLabel.show();
-            gitEmailInput.hide();
-
+            editRepoButton.attr('disabled',false);
+            addRemoteDialog.hide();
+            remoteNameInput.val("");
+            remoteURLInput.val("");
+            if (popover) {
+                popover.close();
+                popover = null;
+            }
         }
-
-        var formButtons = $('<span class="button-group" style="position: relative; float: right; margin-right:0;"></span>')
-            .hide().appendTo(repoContainer);
+        var formButtons = $('<span class="button-row" style="position: relative; float: right; margin: 10px;"></span>')
+            .appendTo(addRemoteDialog);
         $('<button class="editor-button">Cancel</button>')
             .appendTo(formButtons)
             .click(function(evt) {
                 evt.preventDefault();
-
-                var items = remotesList.editableList('items');
-                items.each(function() {
-                    var data = $(this).data('data');
-                    if (!data.name) {
-                        remotesList.editableList('removeItem',data);
-                    } else if (data.removed) {
-                        delete data.removed;
-                        data.body.show();
-                        data.header.css("text-decoration","");
-                        data.header.css("font-style","");
-                    }
-                })
-
-
                 hideEditForm();
             });
-        var saveButton = $('<button class="editor-button">Save</button>')
+        var saveButton = $('<button class="editor-button">Add remote</button>')
             .appendTo(formButtons)
             .click(function(evt) {
                 evt.preventDefault();
-                var spinner = utils.addSpinnerOverlay(repoContainer);
+                var spinner = utils.addSpinnerOverlay(addRemoteDialog).addClass('projects-dialog-spinner-contain');
 
-                var body = {
-                    user: {
-                        name: gitUsernameInput.val(),
-                        email: gitEmailInput.val()
-                    },
-                    remotes: {}
+                var payload = {
+                    name: remoteNameInput.val(),
+                    url: remoteURLInput.val()
                 }
-
-                var items = remotesList.editableList('items');
-                items.each(function() {
-                    var data = $(this).data('data');
-                    if (!data.name) {
-                        body.remotes[data.nameInput.val()] = {
-                            url: data.urlInput.val()
-                        };
-                        remotesList.editableList('removeItem',data);
-                    } else if (data.removed) {
-                        body.remotes[data.name] = {
-                            removed: true
-                        };
-                        delete data.removed;
-                        data.body.show();
-                        data.header.css("text-decoration","");
-                        data.header.css("font-style","");
-                    }
-                })
-
                 var done = function(err) {
                     spinner.remove();
                     if (err) {
-                        console.log(err);
                         return;
                     }
                     hideEditForm();
                 }
-                var payload = { git: body };
-
                 // console.log(JSON.stringify(payload,null,4));
                 RED.deploy.setDeployInflight(true);
                 utils.sendRequest({
-                    url: "projects/"+activeProject.name,
-                    type: "PUT",
+                    url: "projects/"+activeProject.name+"/remotes",
+                    type: "POST",
                     responses: {
                         0: function(error) {
                             done(error);
                         },
                         200: function(data) {
-                            activeProject.git.remotes = data.git.remotes;
-                            activeProject.git.user = data.git.user;
-                            if (activeProject.git.user) {
-                                gitUsernameLabel.text(activeProject.git.user.name);
-                                gitUsernameInput.val(activeProject.git.user.name);
-                                gitEmailLabel.text(activeProject.git.user.email);
-                                gitEmailInput.val(activeProject.git.user.email);
-                            }
-
+                            activeProject.git.remotes = {};
+                            data.remotes.forEach(function(remote) {
+                                var name = remote.name;
+                                delete remote.name;
+                                activeProject.git.remotes[name] = remote;
+                            });
                             updateForm();
+                            RED.sidebar.versionControl.refresh();
                             done();
                         },
                         400: {
-                            'unexpected_error': function(error) {
-                                console.log(error);
+                            'git_remote_already_exists': function(error) {
+                                popover = RED.popover.create({
+                                    target: remoteNameInput,
+                                    direction: 'right',
+                                    size: 'small',
+                                    content: "Remote already exists",
+                                    autoClose: 6000
+                                }).open();
+                                remoteNameInput.addClass('input-error');
+                                done(error);
+                            },
+                            '*': function(error) {
+                                utils.reportUnexpectedError(error);
                                 done(error);
                             }
                         },
                     }
                 },payload);
             });
+
         var updateForm = function() {
             remotesList.editableList('empty');
+            var count = 0;
             if (activeProject.git.hasOwnProperty('remotes')) {
                 for (var name in activeProject.git.remotes) {
                     if (activeProject.git.remotes.hasOwnProperty(name)) {
+                        count++;
                         remotesList.editableList('addItem',{name:name,urls:activeProject.git.remotes[name]});
                     }
                 }
+            }
+            isEmpty = (count === 0);
+            if (isEmpty) {
+                remotesList.editableList('addItem',emptyItem);
             }
         }
         updateForm();
@@ -1171,8 +1445,30 @@ RED.projects.settings = (function() {
         return pane;
     }
 
-    var popover;
+    function refreshModuleInUseCounts() {
+        modulesInUse = {};
+        RED.nodes.eachNode(_updateModulesInUse);
+        RED.nodes.eachConfig(_updateModulesInUse);
+    }
 
+    function _updateModulesInUse(n) {
+        if (!/^subflow:/.test(n.type)) {
+            var module = RED.nodes.registry.getNodeSetForType(n.type).module;
+            if (module !== 'node-red') {
+                if (!modulesInUse.hasOwnProperty(module)) {
+                    modulesInUse[module] = {
+                        module: module,
+                        version: RED.nodes.registry.getModule(module).version,
+                        count: 0,
+                        known: false
+                    }
+                }
+                modulesInUse[module].count++;
+            }
+        }
+    }
+
+    var popover;
     var utils;
     var modulesInUse = {};
     function init(_utils) {
@@ -1201,22 +1497,7 @@ RED.projects.settings = (function() {
             }
         });
 
-        RED.events.on('nodes:add', function(n) {
-            if (!/^subflow:/.test(n.type)) {
-                var module = RED.nodes.registry.getNodeSetForType(n.type).module;
-                if (module !== 'node-red') {
-                    if (!modulesInUse.hasOwnProperty(module)) {
-                        modulesInUse[module] = {
-                            module: module,
-                            version: RED.nodes.registry.getModule(module).version,
-                            count: 0,
-                            known: false
-                        }
-                    }
-                    modulesInUse[module].count++;
-                }
-            }
-        })
+        RED.events.on('nodes:add', _updateModulesInUse);
         RED.events.on('nodes:remove', function(n) {
             if (!/^subflow:/.test(n.type)) {
                 var module = RED.nodes.registry.getNodeSetForType(n.type).module;

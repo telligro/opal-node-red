@@ -75,11 +75,19 @@
                 <dt>payload <span class="property-type">string</span></dt>
                 <dd>the standard output of the command.</dd>
             </dl>
+            <dl class="message-properties">
+                <dt>rc <span class="property-type">object</span></dt>
+                <dd>exec mode only, a copy of the return code object (also available on port 3)</dd>
+            </dl>
         </li>
         <li>Standard error
             <dl class="message-properties">
                 <dt>payload <span class="property-type">string</span></dt>
                 <dd>the standard error of the command.</dd>
+            </dl>
+            <dl class="message-properties">
+                <dt>rc <span class="property-type">object</span></dt>
+                <dd>exec mode only, a copy of the return code object (also available on port 3)</dd>
             </dl>
         </li>
         <li>Return code
@@ -107,6 +115,7 @@
     the type of signal to be sent, for example, <code>SIGINT</code>, <code>SIGQUIT</code> or <code>SIGHUP</code>.
     Defaults to <code>SIGTERM</code> if set to an empty string.</p>
     <p>If the node has more than one process running then <code>msg.pid</code> must also be set with the value of the PID to be killed.</p>
+    <p>If a value is provided in the <code>Timeout</code> field then, if the process has not completed when the specified number of seconds has elapsed, the process will be killed automatically</p>
     <p>Tip: if running a Python app you may need to use the <code>-u</code> parameter to stop the output being buffered.</p>
 </script>
 

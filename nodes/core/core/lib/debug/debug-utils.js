@@ -29,6 +29,7 @@ RED.debug = (function() {
     var messagesByNode = {};
     var sbc;
     var activeWorkspace;
+    var numMessages = 100;  // Hardcoded number of message to show in debug window scrollback
 
     var filterVisible = false;
 
@@ -68,7 +69,7 @@ RED.debug = (function() {
         // var filterTypeRow = $('<div class="debug-filter-row"></div>').appendTo(filterDialog);
         // $('<select><option>Show all debug nodes</option><option>Show selected debug nodes</option><option>Show current flow only</option></select>').appendTo(filterTypeRow);
 
-        var debugNodeListRow = $('<div class="debug-filter-row hide"></div>').appendTo(filterDialog);
+        var debugNodeListRow = $('<div class="debug-filter-row hide" id="debug-filter-node-list-row"></div>').appendTo(filterDialog);
         var flowCheckboxes = {};
         var debugNodeListHeader = $('<div><span data-i18n="node-red:debug.sidebar.debugNodes"></span><span></span></div>');
         var headerCheckbox = $('<input type="checkbox">').appendTo(debugNodeListHeader.find("span")[1]).checkboxSet();
@@ -218,9 +219,7 @@ RED.debug = (function() {
 
         toolbar.find("#debug-tab-clear").click(function(e) {
             e.preventDefault();
-            $(".debug-message").remove();
-            messageCount = 0;
-            config.clear();
+            clearMessageList(false);
         });
 
 
@@ -369,9 +368,24 @@ RED.debug = (function() {
         })
         menuOptionMenu.show();
     }
-    function handleDebugMessage(o) {
-        var msg = document.createElement("div");
 
+    var stack = [];
+    var busy = false;
+    function handleDebugMessage(o) {
+        if (o) { stack.push(o); }
+        if (!busy && (stack.length > 0)) {
+            busy = true;
+            processDebugMessage(stack.shift());
+            setTimeout(function() {
+                busy = false;
+                handleDebugMessage();
+            }, 15);  // every 15mS = 66 times a second
+            if (stack.length > numMessages) { stack = stack.splice(-numMessages); }
+        }
+    }
+
+    function processDebugMessage(o) {
+        var msg = document.createElement("div");
         var sourceNode = o._source;
 
         msg.onmouseenter = function() {
@@ -423,7 +437,9 @@ RED.debug = (function() {
             $('<span class="debug-message-name">'+name+'</span>').appendTo(metaRow);
         }
 
-        if (format === 'Object' || /^array/.test(format) || format === 'boolean' || format === 'number' ) {
+        if ((format === 'number') && (payload === "NaN")) {
+            payload = Number.NaN;
+        } else if (format === 'Object' || /^array/.test(format) || format === 'boolean' || format === 'number' ) {
             payload = JSON.parse(payload);
         } else if (/error/i.test(format)) {
             payload = JSON.parse(payload);
@@ -497,7 +513,7 @@ RED.debug = (function() {
             }
         }
 
-        if (messages.length === 100) {
+        if (messages.length === numMessages) {
             m = messages.shift();
             if (view === "list") {
                 m.el.remove();
@@ -508,10 +524,28 @@ RED.debug = (function() {
         }
     }
 
+    function clearMessageList(clearFilter) {
+        $(".debug-message").remove();
+        config.clear();
+        if (!!clearFilter) {
+            clearFilterSettings();
+        }
+        refreshDebugNodeList();
+    }
+
+    function clearFilterSettings() {
+        filteredNodes = {};
+        filterType = 'filterAll';
+        $('.debug-tab-filter-option').removeClass('selected');
+        $('#debug-tab-filterAll').addClass('selected');
+        $('#debug-tab-filter span').text(RED._('node-red:debug.sidebar.filterAll'));
+        $('#debug-filter-node-list-row').slideUp();
+    }
+
     return {
         init: init,
         refreshMessageList:refreshMessageList,
         handleDebugMessage: handleDebugMessage,
-
+        clearMessageList: clearMessageList
     }
 })();

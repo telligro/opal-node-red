@@ -55,7 +55,12 @@ var persistentSettings = {
         storage = _storage;
         return storage.getSettings().then(function(_settings) {
             globalSettings = _settings;
-            userSettings = globalSettings.users || {};
+            if (globalSettings) {
+                userSettings = globalSettings.users || {};
+            }
+            else {
+                userSettings = {};
+            }
         });
     },
     get: function(prop) {
@@ -165,8 +170,7 @@ var persistentSettings = {
         });
     },
     getUserSettings: function(username) {
-        console.log(username);
-        return userSettings[username];
+        return clone(userSettings[username]);
     },
     setUserSettings: function(username,settings) {
         var current = userSettings[username];
@@ -175,7 +179,7 @@ var persistentSettings = {
             assert.deepEqual(current,settings);
             return when.resolve();
         } catch(err) {
-            globalSettings.user = userSettings;
+            globalSettings.users = userSettings;
             return storage.saveSettings(globalSettings);
         }
     }

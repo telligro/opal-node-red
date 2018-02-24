@@ -41,6 +41,11 @@ module.exports = function(grunt) {
             core: { src: ["test/_spec.js","test/red/**/*_spec.js"]},
             nodes: { src: ["test/nodes/**/*_spec.js"]}
         },
+        webdriver: {
+            all: {
+                configFile: 'test/editor/wdio.conf.js'
+            }
+        },
         mocha_istanbul: {
             options: {
                 globals: ['expect'],
@@ -153,10 +158,11 @@ module.exports = function(grunt) {
                     "editor/js/ui/typeSearch.js",
                     "editor/js/ui/subflow.js",
                     "editor/js/ui/userSettings.js",
-                    "editor/js/ui/variables.js",
-                    "editor/js/ui/projects.js",
-                    "editor/js/ui/projectSettings.js",
-                    "editor/js/ui/tab-versionControl.js",
+					"editor/js/ui/variables.js",
+                    "editor/js/ui/projects/projects.js",
+                    "editor/js/ui/projects/projectSettings.js",
+                    "editor/js/ui/projects/projectUserSettings.js",
+                    "editor/js/ui/projects/tab-versionControl.js",
                     "editor/js/ui/touch/radialMenu.js"
                 ],
                 dest: "public/red/red.js"
@@ -387,9 +393,9 @@ module.exports = function(grunt) {
                 mode: '755'
             },
             release: {
-                // Target-specific file/dir lists and/or options go here.
                 src: [
-                    path.resolve('<%= paths.dist %>/node-red-<%= pkg.version %>/nodes/core/hardware/nrgpio*')
+                    path.resolve('<%= paths.dist %>/node-red-<%= pkg.version %>/nodes/core/hardware/nrgpio*'),
+                    path.resolve('<%= paths.dist %>/node-red-<%= pkg.version %>/red/runtime/storage/localfilesystem/projects/git/node-red-*sh')
                 ]
             }
         },
@@ -419,6 +425,7 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-chmod');
     grunt.loadNpmTasks('grunt-jsonlint');
     grunt.loadNpmTasks('grunt-mocha-istanbul');
+    grunt.loadNpmTasks('grunt-webdriver');
 
     grunt.registerMultiTask('attachCopyright', function() {
         var files = this.data.src;
@@ -477,6 +484,10 @@ module.exports = function(grunt) {
     grunt.registerTask('test-editor',
         'Runs code style check on editor code',
         ['forceon', 'jshint:editor', 'forceoff']);
+
+	grunt.registerTask('test-ui',
+        'Builds editor content then runs unit tests on editor ui',
+        ['forceon', 'build','jshint:editor','webdriver:all', 'forceoff']);
 
     grunt.registerTask('test-nodes',
         'Runs unit tests on core nodes',

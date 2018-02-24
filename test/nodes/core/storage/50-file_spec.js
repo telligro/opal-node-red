@@ -36,6 +36,7 @@ describe('file Nodes', function() {
         });
 
         afterEach(function(done) {
+            fs.removeSync(path.join(resourcesDir,"file-out-node"));
             helper.unload().then(function() {
                 //fs.unlinkSync(fileToTest);
                 helper.stopServer(done);
@@ -154,32 +155,43 @@ describe('file Nodes', function() {
                         var f = fs.readFileSync(fileToTest).toString();
                         f.should.equal("onetwo");
 
-                        // Delete the file
-                        fs.unlinkSync(fileToTest);
-
-                        // Recreate it
-                        fs.writeFileSync(fileToTest,"");
-
-                        // Send two more messages to the file
-                        n1.emit("input", {payload:"three"});
-                        n1.emit("input", {payload:"four"});
-
-                        setTimeout(function() {
-                            // Check the file was updated
-                            try {
-                                var f = fs.readFileSync(fileToTest).toString();
-                                f.should.equal("threefour");
-                                fs.unlinkSync(fileToTest);
-                                done();
-                            } catch(err) {
-                                done(err);
-                            }
-                        },wait);
+                        if (os.type() === "Windows_NT") {
+                            var dummyFile = path.join(resourcesDir,"50-file-test-dummy.txt");
+                            fs.rename(fileToTest, dummyFile, function() {
+                                recreateTest(n1, dummyFile);
+                            });
+                        } else {
+                            recreateTest(n1, fileToTest);
+                        }
                     } catch(err) {
                         done(err);
                     }
                 },wait);
             });
+
+            function recreateTest(n1, fileToDelete) {
+                // Delete the file
+                fs.unlinkSync(fileToDelete);
+
+                // Recreate it
+                fs.writeFileSync(fileToTest,"");
+
+                // Send two more messages to the file
+                n1.emit("input", {payload:"three"});
+                n1.emit("input", {payload:"four"});
+
+                setTimeout(function() {
+                    // Check the file was updated
+                    try {
+                        var f = fs.readFileSync(fileToTest).toString();
+                        f.should.equal("threefour");
+                        fs.unlinkSync(fileToTest);
+                        done();
+                    } catch(err) {
+                        done(err);
+                    }
+                },wait);
+            }
         });
 
 
@@ -357,7 +369,7 @@ describe('file Nodes', function() {
 
         it('should fail to create a new directory if not asked to do so (append)', function(done) {
             // Stub file write so we can make writes fail
-            var fileToTest2 = path.join(resourcesDir,"a","50-file-test-file.txt");
+            var fileToTest2 = path.join(resourcesDir,"file-out-node","50-file-test-file.txt");
             //var spy = sinon.stub(fs, 'appendFile', function(arg,arg2,arg3,arg4){ arg4(new Error("Stub error message")); });
 
             var flow = [{id:"fileNode1", type:"file", name: "fileNode", "filename":fileToTest2, "appendNewline":true, "overwriteFile":false}];
@@ -383,7 +395,7 @@ describe('file Nodes', function() {
 
         it('should try to create a new directory if asked to do so (append)', function(done) {
             // Stub file write so we can make writes fail
-            var fileToTest2 = path.join(resourcesDir,"a","50-file-test-file.txt");
+            var fileToTest2 = path.join(resourcesDir,"file-out-node","50-file-test-file.txt");
             var spy = sinon.stub(fs, "ensureDir", function(arg1,arg2,arg3,arg4) { arg2(null); });
             var flow = [{id:"fileNode1", type:"file", name: "fileNode", "filename":fileToTest2, "appendNewline":true, "overwriteFile":false, "createDir":true}];
             helper.load(fileNode, flow, function() {
@@ -394,9 +406,7 @@ describe('file Nodes', function() {
                             return evt[0].type == "file";
                         });
                         //console.log(logEvents);
-                        logEvents.should.have.length(1);
-                        logEvents[0][0].should.have.a.property('msg');
-                        logEvents[0][0].msg.toString().should.startWith("file.errors.appendfail");
+                        logEvents.should.have.length(0);
                         done();
                     }
                     catch(e) { done(e); }
@@ -408,7 +418,7 @@ describe('file Nodes', function() {
 
         it('should fail to create a new directory if not asked to do so (overwrite)', function(done) {
             // Stub file write so we can make writes fail
-            var fileToTest2 = path.join(resourcesDir,"a","50-file-test-file.txt");
+            var fileToTest2 = path.join(resourcesDir,"file-out-node","50-file-test-file.txt");
             //var spy = sinon.stub(fs, 'appendFile', function(arg,arg2,arg3,arg4){ arg4(new Error("Stub error message")); });
 
             var flow = [{id:"fileNode1", type:"file", name: "fileNode", "filename":fileToTest2, "appendNewline":false, "overwriteFile":true}];
@@ -434,7 +444,7 @@ describe('file Nodes', function() {
 
         it('should try to create a new directory if asked to do so (overwrite)', function(done) {
             // Stub file write so we can make writes fail
-            var fileToTest2 = path.join(resourcesDir,"a","50-file-test-file.txt");
+            var fileToTest2 = path.join(resourcesDir,"file-out-node","50-file-test-file.txt");
             var spy = sinon.stub(fs, "ensureDir", function(arg1,arg2,arg3,arg4) { arg2(null); });
 
             var flow = [{id:"fileNode1", type:"file", name: "fileNode", "filename":fileToTest2, "appendNewline":true, "overwriteFile":true, "createDir":true}];
@@ -446,9 +456,7 @@ describe('file Nodes', function() {
                             return evt[0].type == "file";
                         });
                         //console.log(logEvents);
-                        logEvents.should.have.length(1);
-                        logEvents[0][0].should.have.a.property('msg');
-                        logEvents[0][0].msg.toString().should.startWith("file.errors.writefail");
+                        logEvents.should.have.length(0);
                         done();
                     }
                     catch(e) { done(e); }
@@ -534,20 +542,63 @@ describe('file Nodes', function() {
                 var n2 = helper.getNode("n2");
                 var c = 0;
                 n2.on("input", function(msg) {
-                    msg.should.have.property('payload');
-                    msg.payload.should.be.a.String();
-                    msg.payload.should.have.length(19);
-                    if (c === 0) {
-                        msg.payload.should.equal("File message line 1");
-                        c++;
-                    } else {
-                        msg.payload.should.equal("File message line 2");
+                    try {
+                        msg.should.have.property('payload');
+                        msg.payload.should.be.a.String();
                         msg.should.have.property('parts');
-                        msg.parts.should.have.property('index',1);
-                        msg.parts.should.have.property('count',2);
+                        msg.parts.should.have.property('index',c);
                         msg.parts.should.have.property('type','string');
                         msg.parts.should.have.property('ch','\n');
-                        done();
+                        if (c === 0) {
+                            msg.payload.should.equal("File message line 1");
+                        }
+                        if (c === 1) {
+                            msg.payload.should.equal("File message line 2");
+                        }
+                        if (c === 2) {
+                            msg.payload.should.equal("");
+                            done();
+                        }
+                        c++;
+                    }
+                    catch(e) {
+                        done(e);
+                    }
+                });
+                n1.receive({payload:""});
+            });
+        });
+
+        it('should read in a file with empty line and output split lines with parts', function(done) {
+            var data = ["-", "", "-", ""];
+            var line = data.join("\n");
+            fs.writeFileSync(fileToTest, line);
+            var flow = [{id:"fileInNode1", type:"file in", name: "fileInNode", filename:fileToTest, format:"lines", wires:[["n2"]]},
+                {id:"n2", type:"helper"}];
+            helper.load(fileNode, flow, function() {
+                var n1 = helper.getNode("fileInNode1");
+                var n2 = helper.getNode("n2");
+                var c = 0;
+                n2.on("input", function(msg) {
+                    try {
+                        msg.should.have.property('payload');
+                        msg.payload.should.equal(data[c]);
+                        msg.should.have.property('parts');
+                        var parts = msg.parts;
+                        parts.should.have.property('index',c);
+                        parts.should.have.property('type','string');
+                        parts.should.have.property('ch','\n');
+                        c++;
+                        if (c === data.length) {
+                            parts.should.have.property('count', data.length);
+                            done();
+                        }
+                        else {
+                            parts.should.not.have.property('count');
+                        }
+                    }
+                    catch(e) {
+                        done(e);
                     }
                 });
                 n1.receive({payload:""});

@@ -148,6 +148,7 @@ module.exports = {
     getNodeConfigs: registry.getNodeConfigs,
     getNodeConfig: registry.getNodeConfig,
     getNodeIconPath: registry.getNodeIconPath,
+    getNodeIcons: registry.getNodeIcons,
     getNodeExampleFlows: library.getExampleFlows,
     getNodeExampleFlowPath: library.getExampleFlowPath,
 
@@ -175,5 +176,6 @@ module.exports = {
     getCredentialDefinition: credentials.getDefinition,
     setCredentialSecret: credentials.setKey,
     clearCredentials: credentials.clear,
-    exportCredentials: credentials.export
+    exportCredentials: credentials.export,
+    getCredentialKeyType: credentials.getKeyType
 };

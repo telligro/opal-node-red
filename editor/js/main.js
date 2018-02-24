@@ -24,7 +24,25 @@
             url: 'nodes',
             success: function(data) {
                 RED.nodes.setNodeList(data);
-                RED.i18n.loadNodeCatalogs(loadNodes);
+                RED.i18n.loadNodeCatalogs(function() {
+                    loadIconList(loadNodes);
+                });
+            }
+        });
+    }
+
+    function loadIconList(done) {
+        $.ajax({
+            headers: {
+                "Accept":"application/json"
+            },
+            cache: false,
+            url: 'icons',
+            success: function(data) {
+                RED.nodes.setIconSets(data);
+                if (done) {
+                    done();
+                }
             }
         });
     }
@@ -43,140 +61,26 @@
                 $(".palette-scroll").removeClass("hide");
                 $("#palette-search").removeClass("hide");
                 loadFlows(function() {
-                    RED.projects.refresh(function() {
+                    if (RED.settings.theme("projects.enabled",false)) {
+                        RED.projects.refresh(function(activeProject) {
+                            RED.sidebar.info.refresh()
+                            if (!activeProject) {
+                                // Projects enabled but no active project
+                                RED.menu.setDisabled('menu-item-projects-open',true);
+                                RED.menu.setDisabled('menu-item-projects-settings',true);
+                                if (activeProject === false) {
+                                    // User previously decline the migration to projects.
+                                } else { // null/undefined
+                                    RED.projects.showStartup();
+                                }
+                            }
+                            completeLoad();
+                        });
+                    } else {
+                        // Projects disabled by the user
                         RED.sidebar.info.refresh()
-                    });
-
-                    var persistentNotifications = {};
-                    RED.comms.subscribe("notification/#",function(topic,msg) {
-                        var parts = topic.split("/");
-                        var notificationId = parts[1];
-                        if (notificationId === "runtime-deploy") {
-                            // handled in ui/deploy.js
-                            return;
-                        }
-                        if (notificationId === "node") {
-                            // handled below
-                            return;
-                        }
-                        if (notificationId === "project-update") {
-                            RED.nodes.clear();
-                            RED.history.clear();
-                            RED.view.redraw(true);
-                            RED.projects.refresh(function() {
-                                loadFlows(function() {
-                                    console.log(msg);
-                                    var project = RED.projects.getActiveProject();
-                                    var message = {
-                                        "change-branch":"Change to local branch '"+project.git.branches.local+"'",
-                                        "abort-merge":"Git merge aborted",
-                                        "loaded":"Project '"+msg.project+"' loaded",
-                                        "updated":"Project '"+msg.project+"' updated",
-                                        "pull":"Project '"+msg.project+"' reloaded"
-                                    }[msg.action]
-                                    RED.notify(message);
-                                    RED.sidebar.info.refresh()
-                                });
-                            });
-                            return;
-                        }
-                        if (msg.text) {
-                            var text = RED._(msg.text,{default:msg.text});
-                            if (notificationId === "runtime-state") {
-                                if (msg.error === "credentials_load_failed") {
-                                    // TODO: NLS
-                                    text += '<p><a href="#" onclick="RED.projects.showCredentialsPrompt(); return false;">'+'Setup credentials'+'</a></p>';
-                                } else if (msg.error === "missing_flow_file") {
-                                    // TODO: NLS
-                                    text += '<p><a href="#" onclick="RED.projects.showFilesPrompt(); return false;">'+'Setup project files'+'</a></p>';
-                                } else if (msg.error === "runtime-error-uncaughtException"){
-                                    //TODO: NLS
-                                    console.log('runtime-error-uncaughtException')
-                                    //FIXME: Ugly hack to dismiss the error, review and fix
-                                    text += '<p><a href="#" onclick="return false;">' + '<button onclick="var nn = $(\'.notification-error\');$(nn).slideUp(300, function() {$(nn).remove()});" class="btn btn-danger pull-right">Dismiss</button>' + '</a></p>';
-                                }
-                            }
-                            if (!persistentNotifications.hasOwnProperty(notificationId)) {
-                                persistentNotifications[notificationId] = RED.notify(text,msg.type,msg.timeout === undefined,msg.timeout);
-                            } else {
-                                persistentNotifications[notificationId].update(text,msg.timeout);
-                            }
-                        } else if (persistentNotifications.hasOwnProperty(notificationId)) {
-                            persistentNotifications[notificationId].close();
-                            delete persistentNotifications[notificationId];
-                        }
-                    });
-                    RED.comms.subscribe("status/#",function(topic,msg) {
-                        var parts = topic.split("/");
-                        var node = RED.nodes.node(parts[1]);
-                        if (node) {
-                            if (msg.hasOwnProperty("text")) {
-                                if (msg.text[0] !== ".") {
-                                    msg.text = node._(msg.text.toString(),{defaultValue:msg.text.toString()});
-                                }
-                            }
-                            node.status = msg;
-                            node.dirty = true;
-                            RED.view.redraw();
-                        }
-                    });
-                    RED.comms.subscribe("notification/node/#",function(topic,msg) {
-                        var i,m;
-                        var typeList;
-                        var info;
-                        if (topic == "notification/node/added") {
-                            var addedTypes = [];
-                            msg.forEach(function(m) {
-                                var id = m.id;
-                                RED.nodes.addNodeSet(m);
-                                addedTypes = addedTypes.concat(m.types);
-                                RED.i18n.loadCatalog(id, function() {
-                                    $.get('nodes/'+id, function(data) {
-                                        $("body").append(data);
-                                    });
-                                });
-                            });
-                            if (addedTypes.length) {
-                                typeList = "<ul><li>"+addedTypes.join("</li><li>")+"</li></ul>";
-                                RED.notify(RED._("palette.event.nodeAdded", {count:addedTypes.length})+typeList,"success");
-                            }
-                        } else if (topic == "notification/node/removed") {
-                            for (i=0;i<msg.length;i++) {
-                                m = msg[i];
-                                info = RED.nodes.removeNodeSet(m.id);
-                                if (info.added) {
-                                    typeList = "<ul><li>"+m.types.join("</li><li>")+"</li></ul>";
-                                    RED.notify(RED._("palette.event.nodeRemoved", {count:m.types.length})+typeList,"success");
-                                }
-                            }
-                        } else if (topic == "notification/node/enabled") {
-                            if (msg.types) {
-                                info = RED.nodes.getNodeSet(msg.id);
-                                if (info.added) {
-                                    RED.nodes.enableNodeSet(msg.id);
-                                    typeList = "<ul><li>"+msg.types.join("</li><li>")+"</li></ul>";
-                                    RED.notify(RED._("palette.event.nodeEnabled", {count:msg.types.length})+typeList,"success");
-                                } else {
-                                    $.get('nodes/'+msg.id, function(data) {
-                                        $("body").append(data);
-                                        typeList = "<ul><li>"+msg.types.join("</li><li>")+"</li></ul>";
-                                        RED.notify(RED._("palette.event.nodeAdded", {count:msg.types.length})+typeList,"success");
-                                    });
-                                }
-                            }
-                        } else if (topic == "notification/node/disabled") {
-                            if (msg.types) {
-                                RED.nodes.disableNodeSet(msg.id);
-                                typeList = "<ul><li>"+msg.types.join("</li><li>")+"</li></ul>";
-                                RED.notify(RED._("palette.event.nodeDisabled", {count:msg.types.length})+typeList,"success");
-                            }
-                        } else if (topic == "node/upgraded") {
-                            RED.notify(RED._("palette.event.nodeUpgraded", {module:msg.module,version:msg.version}),"success");
-                            RED.nodes.registry.setModulePendingUpdated(msg.module,msg.version);
-                        }
-                        // Refresh flow library to ensure any examples are updated
-                        RED.library.loadFlowLibrary();
-                    });
+                        completeLoad();
+                    }
                 });
             }
         });
@@ -205,6 +109,218 @@
         });
     }
 
+    function completeLoad() {
+        var persistentNotifications = {};
+        RED.comms.subscribe("notification/#",function(topic,msg) {
+            var parts = topic.split("/");
+            var notificationId = parts[1];
+            if (notificationId === "runtime-deploy") {
+                // handled in ui/deploy.js
+                return;
+            }
+            if (notificationId === "node") {
+                // handled below
+                return;
+            }
+            if (notificationId === "project-update") {
+                RED.nodes.clear();
+                RED.history.clear();
+                RED.view.redraw(true);
+                RED.projects.refresh(function() {
+                    loadFlows(function() {
+                        var project = RED.projects.getActiveProject();
+                        var message = {
+                            "change-branch":"Change to local branch '"+project.git.branches.local+"'",
+                            "merge-abort":"Git merge aborted",
+                            "loaded":"Project '"+msg.project+"' loaded",
+                            "updated":"Project '"+msg.project+"' updated",
+                            "pull":"Project '"+msg.project+"' reloaded",
+                            "revert": "Project '"+msg.project+"' reloaded",
+                            "merge-complete":"Git merge completed"
+                        }[msg.action];
+                        RED.notify("<p>"+message+"</p>");
+                        RED.sidebar.info.refresh()
+                    });
+                });
+                return;
+            }
+
+            if (msg.text) {
+                msg.default = msg.text;
+                var text = RED._(msg.text,msg);
+                var options = {
+                    type: msg.type,
+                    fixed: msg.timeout === undefined,
+                    timeout: msg.timeout,
+                    id: notificationId
+                }
+                if (notificationId === "runtime-state") {
+                    if (msg.error === "missing-types") {
+                        text+="<ul><li>"+msg.types.join("</li><li>")+"</li></ul>";
+                        if (!!RED.projects.getActiveProject()) {
+                            options.buttons = [
+                                {
+                                    text: "Manage project dependencies",
+                                    click: function() {
+                                        persistentNotifications[notificationId].hideNotification();
+                                        RED.projects.settings.show('deps');
+                                    }
+                                }
+                            ]
+                        // } else if (RED.settings.theme('palette.editable') !== false) {
+                        } else {
+                            options.buttons = [
+                                {
+                                    text: "Close",
+                                    click: function() {
+                                        persistentNotifications[notificationId].hideNotification();
+                                    }
+                                }
+                            ]
+                        }
+                    } else if (msg.error === "credentials_load_failed") {
+                        if (RED.user.hasPermission("projects.write")) {
+                            options.buttons = [
+                                {
+                                    text: "Setup credentials",
+                                    click: function() {
+                                        persistentNotifications[notificationId].hideNotification();
+                                        RED.projects.showCredentialsPrompt();
+                                    }
+                                }
+                            ]
+                        }
+                    } else if (msg.error === "missing_flow_file") {
+                        if (RED.user.hasPermission("projects.write")) {
+                            options.buttons = [
+                                {
+                                    text: "Setup project files",
+                                    click: function() {
+                                        persistentNotifications[notificationId].hideNotification();
+                                        RED.projects.showFilesPrompt();
+                                    }
+                                }
+                            ]
+                        }
+                    } else if (msg.error === "project_empty") {
+                        if (RED.user.hasPermission("projects.write")) {
+                            options.buttons = [
+                                {
+                                    text: "No thanks",
+                                    click: function() {
+                                        persistentNotifications[notificationId].hideNotification();
+                                    }
+                                },
+                                {
+                                    text: "Create default project files",
+                                    click: function() {
+                                        persistentNotifications[notificationId].hideNotification();
+                                        RED.projects.createDefaultFileSet();
+                                    }
+                                }
+                            ]
+                        }
+                    } else if (msg.error === "git_merge_conflict") {
+                        RED.nodes.clear();
+                        RED.sidebar.versionControl.refresh(true);
+                        if (RED.user.hasPermission("projects.write")) {
+                            options.buttons = [
+                                {
+                                    text: "Show merge conflicts",
+                                    click: function() {
+                                        persistentNotifications[notificationId].hideNotification();
+                                        RED.sidebar.versionControl.showLocalChanges();
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+                if (!persistentNotifications.hasOwnProperty(notificationId)) {
+                    persistentNotifications[notificationId] = RED.notify(text,options);
+                } else {
+                    persistentNotifications[notificationId].update(text,options);
+                }
+            } else if (persistentNotifications.hasOwnProperty(notificationId)) {
+                persistentNotifications[notificationId].close();
+                delete persistentNotifications[notificationId];
+            }
+        });
+        RED.comms.subscribe("status/#",function(topic,msg) {
+            var parts = topic.split("/");
+            var node = RED.nodes.node(parts[1]);
+            if (node) {
+                if (msg.hasOwnProperty("text")) {
+                    if (msg.text[0] !== ".") {
+                        msg.text = node._(msg.text.toString(),{defaultValue:msg.text.toString()});
+                    }
+                }
+                node.status = msg;
+                node.dirty = true;
+                RED.view.redraw();
+            }
+        });
+        RED.comms.subscribe("notification/node/#",function(topic,msg) {
+            var i,m;
+            var typeList;
+            var info;
+            if (topic == "notification/node/added") {
+                var addedTypes = [];
+                msg.forEach(function(m) {
+                    var id = m.id;
+                    RED.nodes.addNodeSet(m);
+                    addedTypes = addedTypes.concat(m.types);
+                    RED.i18n.loadCatalog(id, function() {
+                        $.get('nodes/'+id, function(data) {
+                            $("body").append(data);
+                        });
+                    });
+                });
+                if (addedTypes.length) {
+                    typeList = "<ul><li>"+addedTypes.join("</li><li>")+"</li></ul>";
+                    RED.notify(RED._("palette.event.nodeAdded", {count:addedTypes.length})+typeList,"success");
+                }
+                loadIconList();
+            } else if (topic == "notification/node/removed") {
+                for (i=0;i<msg.length;i++) {
+                    m = msg[i];
+                    info = RED.nodes.removeNodeSet(m.id);
+                    if (info.added) {
+                        typeList = "<ul><li>"+m.types.join("</li><li>")+"</li></ul>";
+                        RED.notify(RED._("palette.event.nodeRemoved", {count:m.types.length})+typeList,"success");
+                    }
+                }
+                loadIconList();
+            } else if (topic == "notification/node/enabled") {
+                if (msg.types) {
+                    info = RED.nodes.getNodeSet(msg.id);
+                    if (info.added) {
+                        RED.nodes.enableNodeSet(msg.id);
+                        typeList = "<ul><li>"+msg.types.join("</li><li>")+"</li></ul>";
+                        RED.notify(RED._("palette.event.nodeEnabled", {count:msg.types.length})+typeList,"success");
+                    } else {
+                        $.get('nodes/'+msg.id, function(data) {
+                            $("body").append(data);
+                            typeList = "<ul><li>"+msg.types.join("</li><li>")+"</li></ul>";
+                            RED.notify(RED._("palette.event.nodeAdded", {count:msg.types.length})+typeList,"success");
+                        });
+                    }
+                }
+            } else if (topic == "notification/node/disabled") {
+                if (msg.types) {
+                    RED.nodes.disableNodeSet(msg.id);
+                    typeList = "<ul><li>"+msg.types.join("</li><li>")+"</li></ul>";
+                    RED.notify(RED._("palette.event.nodeDisabled", {count:msg.types.length})+typeList,"success");
+                }
+            } else if (topic == "node/upgraded") {
+                RED.notify(RED._("palette.event.nodeUpgraded", {module:msg.module,version:msg.version}),"success");
+                RED.nodes.registry.setModulePendingUpdated(msg.module,msg.version);
+            }
+            // Refresh flow library to ensure any examples are updated
+            RED.library.loadFlowLibrary();
+        });
+    }
+
     function showAbout() {
         $.get('red/about', function(data) {
             var aboutHeader = '<div style="text-align:center;">'+
@@ -218,11 +334,13 @@
 
     function loadEditor() {
         var menuOptions = [];
-
-        menuOptions.push({id:"menu-item-projects-menu",label:"NLS: Projects",options:[
-            {id:"menu-item-projects-new",label:"New...",disabled:false,onselect:"core:new-project"},
-            {id:"menu-item-projects-open",label:"Open...",disabled:false,onselect:"core:open-project"},
-        ]});
+        if (RED.settings.theme("projects.enabled",false)) {
+            menuOptions.push({id:"menu-item-projects-menu",label:"Projects",options:[
+                {id:"menu-item-projects-new",label:"New",disabled:false,onselect:"core:new-project"},
+                {id:"menu-item-projects-open",label:"Open",disabled:false,onselect:"core:open-project"},
+                {id:"menu-item-projects-settings",label:"Project Settings",disabled:false,onselect:"core:show-project-settings"}
+            ]});
+        }
 
 
         menuOptions.push({id:"menu-item-view-menu",label:RED._("menu.label.view.view"),options:[
@@ -279,7 +397,7 @@
             label: RED.settings.theme("menu.menu-item-help.label",RED._("menu.label.help")),
             href: RED.settings.theme("menu.menu-item-help.url","http://nodered.org/docs")
         });
-        menuOptions.push({id:"menu-item-node-red-version", label:"v"+RED.settings.opalVersion, onselect: "core:show-about" });
+        menuOptions.push({id:"menu-item-node-red-version", label:"v"+RED.settings.version, onselect: "core:show-about" });
 
 
         RED.view.init();
@@ -291,10 +409,18 @@
         RED.palette.init();
         if (RED.settings.theme('palette.editable') !== false) {
             RED.palette.editor.init();
+        } else {
+            console.log("Palette editor disabled");
         }
 
         RED.sidebar.init();
-        RED.projects.init();
+
+        if (RED.settings.theme("projects.enabled",false)) {
+            RED.projects.init();
+        } else {
+            console.log("Projects disabled");
+        }
+
         RED.subflow.init();
         RED.workspaces.init();
         RED.clipboard.init();
@@ -305,6 +431,7 @@
         RED.menu.init({id:"btn-sidemenu",options: menuOptions});
 
         RED.deploy.init(RED.settings.theme("deployButton",null));
+        RED.notifications.init();
 
         RED.actions.add("core:show-about", showAbout);
         RED.nodes.init();

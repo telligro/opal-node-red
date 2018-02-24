@@ -76,17 +76,25 @@
         "password": "Password",
         "login": "Login",
         "loginFailed": "Login failed",
-        "notAuthorized": "Not authorized"
+        "notAuthorized": "Not authorized",
+        "errors": {
+            "settings": "You must be logged in to access settings",
+            "deploy": "You must be logged in to deploy changes",
+            "notAuthorized": "You must be logged in to perform this action"
+        }
     },
     "notification": {
         "warning": "<strong>Warning</strong>: __message__",
         "warnings": {
             "undeployedChanges": "node has undeployed changes",
             "nodeActionDisabled": "node actions disabled within subflow",
-            "missing-types": "Flows stopped due to missing node types. Check logs for details.",
+            "missing-types": "<p>Flows stopped due to missing node types.</p>",
             "restartRequired": "Node-RED must be restarted to enable upgraded modules",
-            "credentials_load_failed": "Flows stopped due to missing or invalid credentialSecret",
-            "missing_flow_file": "Could not find the project flow file"
+            "credentials_load_failed": "<p>Flows stopped as the credentials could not be decrypted.</p><p>The flow credential file is encrypted, but the project's encryption key is missing or invalid.</p>",
+            "missing_flow_file": "<p>Project flow file not found.</p><p>The project is not configured with a flow file.</p>",
+            "project_empty": "<p>The project is empty.</p><p>Do you want to create a default set of project files?<br/>Otherwise, you will have to manually add files to the project outside of the editor.</p>",
+            "project_not_found": "<p>Project '__project__' not found.</p>",
+            "git_merge_conflict": "<p>Automatic merging of changes failed.</p><p>Fix the unmerged conflicts then commit the results.</p>"
         },
 
         "error": "<strong>Error</strong>: __message__",
@@ -161,7 +169,8 @@
             "backgroundUpdate": "The flows on the server have been updated.",
             "conflictChecking": "Checking to see if the changes can be merged automatically",
             "conflictAutoMerge": "The changes include no conflicts and can be merged automatically.",
-            "conflictManualMerge": "The changes include conflicts that must be resolved before they can be deployed."
+            "conflictManualMerge": "The changes include conflicts that must be resolved before they can be deployed.",
+            "plusNMore": "+ __count__ more"
         }
     },
     "diff": {
@@ -213,9 +222,10 @@
         "editConfig": "Edit __type__ config node",
         "addNewType": "Add new __type__...",
         "nodeProperties": "node properties",
-        "portLabels": "port labels",
+        "portLabels": "node settings",
         "labelInputs": "Inputs",
         "labelOutputs": "Outputs",
+        "settingIcon": "Icon",
         "noDefaultLabel": "none",
         "defaultLabel": "use default label",
         "errors": {
@@ -338,24 +348,24 @@
             "sortRecent": "recent",
             "more": "+ __count__ more",
             "errors": {
-                "catalogLoadFailed": "Failed to load node catalogue.<br>Check the browser console for more information",
-                "installFailed": "Failed to install: __module__<br>__message__<br>Check the log for more information",
-                "removeFailed": "Failed to remove: __module__<br>__message__<br>Check the log for more information",
-                "updateFailed": "Failed to update: __module__<br>__message__<br>Check the log for more information",
-                "enableFailed": "Failed to enable: __module__<br>__message__<br>Check the log for more information",
-                "disableFailed": "Failed to disable: __module__<br>__message__<br>Check the log for more information"
+                "catalogLoadFailed": "<p>Failed to load node catalogue.</p><p>Check the browser console for more information</p>",
+                "installFailed": "<p>Failed to install: __module__</p><p>__message__</p><p>Check the log for more information</p>",
+                "removeFailed": "<p>Failed to remove: __module__</p><p>__message__</p><p>Check the log for more information</p>",
+                "updateFailed": "<p>Failed to update: __module__</p><p>__message__</p><p>Check the log for more information</p>",
+                "enableFailed": "<p>Failed to enable: __module__</p><p>__message__</p><p>Check the log for more information</p>",
+                "disableFailed": "<p>Failed to disable: __module__</p><p>__message__</p><p>Check the log for more information</p>"
             },
             "confirm": {
                 "install": {
-                    "body":"Before installing, please read the node's documentation. Some nodes have dependencies that cannot be automatically resolved and can require a restart of Node-RED. ",
+                    "body":"<p>Installing '__module__'</p><p>Before installing, please read the node's documentation. Some nodes have dependencies that cannot be automatically resolved and can require a restart of Node-RED.</p>",
                     "title": "Install nodes"
                 },
                 "remove": {
-                    "body":"Removing the node will uninstall it from Node-RED. The node may continue to use resources until Node-RED is restarted.",
+                    "body":"<p>Removing '__module__'</p><p>Removing the node will uninstall it from Node-RED. The node may continue to use resources until Node-RED is restarted.</p>",
                     "title": "Remove nodes"
                 },
                 "update": {
-                    "body":"Updating the node will require a restart of Node-RED to complete the update. This must be done manually.",
+                    "body":"<p>Updating '__module__'</p><p>Updating the node will require a restart of Node-RED to complete the update. This must be done manually.</p>",
                     "title": "Update nodes"
                 },
                 "cannotUpdate": {
@@ -445,8 +455,10 @@
     },
     "expressionEditor": {
         "functions": "Functions",
+        "functionReference": "Function reference",
         "insert": "Insert",
         "title": "JSONata Expression editor",
+        "test": "Test",
         "data": "Example message",
         "result": "Result",
         "format": "format expression",

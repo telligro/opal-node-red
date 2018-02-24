@@ -18,6 +18,7 @@ var should = require("should");
 
 var switchNode = require("../../../../nodes/core/logic/10-switch.js");
 var helper = require("../../helper.js");
+var RED = require("../../../../red/red.js");
 
 describe('switch Node', function() {
 
@@ -28,6 +29,7 @@ describe('switch Node', function() {
     afterEach(function(done) {
         helper.unload();
         helper.stopServer(done);
+        RED.settings.nodeMessageBufferMaxLength = 0;
     });
 
     it('should be loaded with some defaults', function(done) {
@@ -119,6 +121,55 @@ describe('switch Node', function() {
         });
     }
 
+    function customFlowSequenceSwitchTest(flow, seq_in, seq_out, repair, modifier, done) {
+        helper.load(switchNode, flow, function() {
+            var switchNode1 = helper.getNode("switchNode1");
+            var helperNode1 = helper.getNode("helperNode1");
+            var sid = undefined;
+            var count = 0;
+            if (modifier !== undefined) {
+                modifier(switchNode1);
+            }
+            helperNode1.on("input", function(msg) {
+                try {
+                    msg.should.have.property("payload", seq_out[count]);
+                    msg.should.have.property("parts");
+                    var parts = msg.parts;
+                    parts.should.have.property("id");
+                    var id = parts.id;
+                    if (sid === undefined) {
+                        sid = id;
+                    }
+                    else {
+                        id.should.equal(sid);
+                    }
+                    if (repair) {
+                        parts.should.have.property("index", count);
+                        parts.should.have.property("count", seq_out.length);
+                    }
+                    else {
+                        parts.should.have.property("index", msg.xindex);
+                        parts.should.have.property("count", seq_in.length);
+                    }
+                    count++;
+                    if (count === seq_out.length) {
+                        done();
+                    }
+                } catch (e) {
+                    done(e);
+                }
+            });
+            var len = seq_in.length;
+            for (var i = 0; i < len; i++) {
+                var parts = {index:i, count:len, id:222};
+                var msg = {payload:seq_in[i], xindex:i, parts:parts};
+                switchNode1.receive(msg);
+            }
+        });
+    }
+
+    
+    
     it('should check if payload equals given value', function(done) {
         genericSwitchTest("eq", "Hello", true, true, "Hello", done);
     });
@@ -185,6 +236,10 @@ describe('switch Node', function() {
 
     it('should check if payload is between given values', function(done) {
         twoFieldSwitchTest("btwn", "3", "5", true, true, 4, done);
+    });
+
+    it('should check if payload is between given string values', function(done) {
+        twoFieldSwitchTest("btwn", "c", "e", true, true, "d", done);
     });
 
     it('should check if payload is not between given values', function(done) {
@@ -489,4 +544,248 @@ describe('switch Node', function() {
         });
     });
 
+    it('should handle JSONata expression', function(done) {
+        var flow = [{id:"switchNode1",type:"switch",name:"switchNode",property:"$abs(payload)",propertyType:"jsonata",rules:[{"t":"btwn","v":"$sqrt(16)","vt":"jsonata","v2":"$sqrt(36)","v2t":"jsonata"}],checkall:true,outputs:1,wires:[["helperNode1"]]},
+                    {id:"helperNode1", type:"helper", wires:[]}];
+        customFlowSwitchTest(flow, true, -5, done);
+    });
+
+    it('should take head of message sequence (no repair)', function(done) {
+        var flow = [{id:"switchNode1",type:"switch",name:"switchNode",property:"payload",rules:[{"t":"head","v":3}],checkall:false,repair:false,outputs:1,wires:[["helperNode1"]]},
+                    {id:"helperNode1", type:"helper", wires:[]}];
+        customFlowSequenceSwitchTest(flow, [0, 1, 2, 3, 4], [0, 1, 2], false, undefined, done);
+    });
+
+    it('should take head of message sequence (repair)', function(done) {
+        var flow = [{id:"switchNode1",type:"switch",name:"switchNode",property:"payload",rules:[{"t":"head","v":3}],checkall:false,repair:true,outputs:1,wires:[["helperNode1"]]},
+                    {id:"helperNode1", type:"helper", wires:[]}];
+        customFlowSequenceSwitchTest(flow, [0, 1, 2, 3, 4], [0, 1, 2], true, undefined, done);
+    });
+
+    it('should take head of message sequence (w. context)', function(done) {
+        var flow = [{id:"switchNode1",type:"switch",name:"switchNode",property:"payload",rules:[{"t":"head","v":"count",vt:"global"}],checkall:false,repair:true,outputs:1,wires:[["helperNode1"]]},
+                    {id:"helperNode1", type:"helper", wires:[]}];
+        customFlowSequenceSwitchTest(flow, [0, 1, 2, 3, 4], [0, 1, 2], true, 
+                                     function(node) {
+                                         node.context().global.set("count", 3);
+                                     }, done);
+    });
+
+    it('should take head of message sequence (w. JSONata)', function(done) {
+        var flow = [{id:"switchNode1",type:"switch",name:"switchNode",property:"payload",rules:[{"t":"head","v":"1+4/2",vt:"jsonata"}],checkall:false,repair:true,outputs:1,wires:[["helperNode1"]]},
+                    {id:"helperNode1", type:"helper", wires:[]}];
+        customFlowSequenceSwitchTest(flow, [0, 1, 2, 3, 4], [0, 1, 2], true, undefined, done);
+    });
+
+    it('should take tail of message sequence (no repair)', function(done) {
+        var flow = [{id:"switchNode1",type:"switch",name:"switchNode",property:"payload",rules:[{"t":"tail","v":3}],checkall:true,repair:false,outputs:1,wires:[["helperNode1"]]},
+                    {id:"helperNode1", type:"helper", wires:[]}];
+        customFlowSequenceSwitchTest(flow, [0, 1, 2, 3, 4], [2, 3, 4], false, undefined, done);
+    });
+
+    it('should take tail of message sequence (repair)', function(done) {
+        var flow = [{id:"switchNode1",type:"switch",name:"switchNode",property:"payload",rules:[{"t":"tail","v":3}],checkall:true,repair:true,outputs:1,wires:[["helperNode1"]]},
+                    {id:"helperNode1", type:"helper", wires:[]}];
+        customFlowSequenceSwitchTest(flow, [0, 1, 2, 3, 4], [2, 3, 4], true, undefined, done);
+    });
+
+    it('should take slice of message sequence (no repair)', function(done) {
+        var flow = [{id:"switchNode1",type:"switch",name:"switchNode",property:"payload",rules:[{"t":"index","v":1,"v2":3}],checkall:true,repair:false,outputs:1,wires:[["helperNode1"]]},
+                    {id:"helperNode1", type:"helper", wires:[]}];
+        customFlowSequenceSwitchTest(flow, [0, 1, 2, 3, 4], [1, 2, 3], false, undefined, done);
+    });
+
+    it('should take slice of message sequence (repair)', function(done) {
+        var flow = [{id:"switchNode1",type:"switch",name:"switchNode",property:"payload",rules:[{"t":"index","v":1,"v2":3}],checkall:true,repair:true,outputs:1,wires:[["helperNode1"]]},
+                    {id:"helperNode1", type:"helper", wires:[]}];
+        customFlowSequenceSwitchTest(flow, [0, 1, 2, 3, 4], [1, 2, 3], true, undefined, done);
+    });
+
+    it('should check JSONata expression is true', function(done) {
+        var flow = [{id:"switchNode1",type:"switch",name:"switchNode",property:"payload",
+                     rules:[{"t":"jsonata_exp","v":"payload%2 = 1","vt":"jsonata"}],
+                     checkall:true,outputs:1,wires:[["helperNode1"]]},
+                    {id:"helperNode1", type:"helper", wires:[]}];
+        customFlowSwitchTest(flow, true, 9, done);
+    });
+    
+    it('should be able to use $I in JSONata expression', function(done) {
+        var flow = [{id:"switchNode1",type:"switch",name:"switchNode",property:"payload",rules:[{"t":"jsonata_exp","v":"$I % 2 = 1",vt:"jsonata"}],checkall:true,repair:true,outputs:1,wires:[["helperNode1"]]},
+                    {id:"helperNode1", type:"helper", wires:[]}];
+        customFlowSequenceSwitchTest(flow, [0, 1, 2, 3, 4], [1, 3], true, undefined, done);
+    });
+
+    it('should be able to use $N in JSONata expression', function(done) {
+        var flow = [{id:"switchNode1",type:"switch",name:"switchNode",property:"payload",rules:[{"t":"jsonata_exp","v":"payload >= $N-2",vt:"jsonata"}],checkall:true,repair:true,outputs:1,wires:[["helperNode1"]]},
+                    {id:"helperNode1", type:"helper", wires:[]}];
+        customFlowSequenceSwitchTest(flow, [0, 1, 2, 3, 4], [3, 4], true, undefined, done);
+    });
+
+
+    function customFlowSequenceMultiSwitchTest(flow, seq_in, outs, repair, done) {
+        helper.load(switchNode, flow, function() {
+            var n1 = helper.getNode("n1");
+            var port_count = Object.keys(outs).length;
+            var sid;
+            var ids = new Array(port_count).fill(undefined);
+            var counts = new Array(port_count).fill(0);
+            var vals = new Array(port_count);
+            var recv_count = 0;
+            for (var id in outs) {
+                var out = outs[id];
+                vals[out.port] = out.vals;
+                recv_count += out.vals.length;
+            }
+            var count = 0;
+            function check_msg(msg, ix, vf) {
+                try {
+                    msg.should.have.property("payload");
+                    var payload = msg.payload;
+                    msg.should.have.property("parts");
+                    vf(payload).should.be.ok;
+                    var parts = msg.parts;
+                    var evals = vals[ix];
+                    parts.should.have.property("id");
+                    var id = parts.id;
+                    if (repair) {
+                        if (ids[ix] === undefined) {
+                            ids[ix] = id;
+                        }
+                        else {
+                            ids[ix].should.equal(id);
+                        }
+                        parts.should.have.property("count", evals.length);
+                        parts.should.have.property("index", counts[ix]);
+                    }
+                    else {
+                        if (sid === undefined) {
+                            sid = id;
+                        }
+                        else {
+                            sid.should.equal(id);
+                        }
+                        parts.should.have.property("count", seq_in.length);
+                        parts.should.have.property("index", msg.xindex);
+                    }
+                    var index = parts.index;
+                    var eindex = counts[ix];
+                    var eval = evals[eindex];
+                    payload.should.equal(eval);
+                    counts[ix]++;
+                    count++;
+                    if (count === recv_count) {
+                        done();
+                    }
+                }
+                catch (e) {
+                    done(e);
+                }
+            }
+            for (var id in outs) {
+                (function() {
+                    var node = helper.getNode(id);
+                    var port = outs[id].port;
+                    var vf = outs[id].vf;
+                    node.on("input", function(msg) {
+                        check_msg(msg, port, vf);
+                    });
+                })();
+            }
+            for(var i in seq_in) {
+                n1.receive({payload:seq_in[i], xindex:i,
+                            parts:{index:i, count:seq_in.length, id:222}});
+            }
+        });
+    }
+
+    it('should not repair message sequence for each port', function(done) {
+        var flow = [{id:"n1",type:"switch",name:"switchNode",property:"payload",
+                     rules:[{"t":"gt","v":0},{"t":"lt","v":0},{"t":"else"}],
+                     checkall:true,repair:false,
+                     outputs:3,wires:[["n2"],["n3"],["n4"]]},
+                    {id:"n2", type:"helper", wires:[]},
+                    {id:"n3", type:"helper", wires:[]},
+                    {id:"n4", type:"helper", wires:[]}
+                   ];
+        var data = [ 1, -2, 2, 0, -1 ];
+        var outs = {
+            "n2" : { port:0, vals:[1, 2],
+                     vf:function(x) { return(x > 0); } },
+            "n3" : { port:1, vals:[-2, -1],
+                     vf:function(x) { return(x < 0); } },
+            "n4" : { port:2, vals:[0],
+                     vf:function(x) { return(x == 0); } },
+        };
+        customFlowSequenceMultiSwitchTest(flow, data, outs, false, done);
+    });
+
+    it('should repair message sequence for each port', function(done) {
+        var flow = [{id:"n1",type:"switch",name:"switchNode",property:"payload",
+                     rules:[{"t":"gt","v":0},{"t":"lt","v":0},{"t":"else"}],
+                     checkall:true,repair:true,
+                     outputs:3,wires:[["n2"],["n3"],["n4"]]},
+                    {id:"n2", type:"helper", wires:[]}, // >0
+                    {id:"n3", type:"helper", wires:[]}, // <0
+                    {id:"n4", type:"helper", wires:[]}  // ==0
+                   ];
+        var data = [ 1, -2, 2, 0, -1 ];
+        var outs = {
+            "n2" : { port:0, vals:[1, 2],
+                     vf:function(x) { return(x > 0); } },
+            "n3" : { port:1, vals:[-2, -1],
+                     vf:function(x) { return(x < 0); } },
+            "n4" : { port:2, vals:[0],
+                     vf:function(x) { return(x == 0); } },
+        };
+        customFlowSequenceMultiSwitchTest(flow, data, outs, true, done);
+    });
+
+    it('should repair message sequence for each port (overlap)', function(done) {
+        var flow = [{id:"n1",type:"switch",name:"switchNode",property:"payload",
+                     rules:[{"t":"gte","v":0},{"t":"lte","v":0},{"t":"else"}],
+                     checkall:true,repair:true,
+                     outputs:3,wires:[["n2"],["n3"],["n4"]]},
+                    {id:"n2", type:"helper", wires:[]}, // >=0
+                    {id:"n3", type:"helper", wires:[]}, // <=0
+                    {id:"n4", type:"helper", wires:[]}  // none
+                   ];
+        var data = [ 1, -2, 2, 0, -1 ];
+        var outs = {
+            "n2" : { port:0, vals:[1, 2, 0],
+                     vf:function(x) { return(x > 0); } },
+            "n3" : { port:1, vals:[-2, 0, -1],
+                     vf:function(x) { return(x < 0); } },
+            "n4" : { port:2, vals:[],
+                     vf:function(x) { return(false); } },
+        };
+        customFlowSequenceMultiSwitchTest(flow, data, outs, true, done);
+    });
+
+    it('should handle too many pending messages', function(done) {
+        var flow = [{id:"n1",type:"switch",name:"switchNode",property:"payload",
+                     rules:[{"t":"tail","v":2}],
+                     checkall:true,repair:false,
+                     outputs:3,wires:[["n2"]]},
+                    {id:"n2", type:"helper", wires:[]}
+                   ];
+        helper.load(switchNode, flow, function() {
+            var n1 = helper.getNode("n1");
+            RED.settings.nodeMessageBufferMaxLength = 2;
+            setTimeout(function() {
+                var logEvents = helper.log().args.filter(function (evt) {
+                    return evt[0].type == "switch";
+                });
+                var evt = logEvents[0][0];
+                evt.should.have.property('id', "n1");
+                evt.should.have.property('type', "switch");
+                evt.should.have.property('msg', "switch.errors.too-many");
+                done();
+            }, 150);
+            n1.receive({payload:3, parts:{index:2, count:4, id:222}});
+            n1.receive({payload:2, parts:{index:1, count:4, id:222}});
+            n1.receive({payload:4, parts:{index:3, count:4, id:222}});
+            n1.receive({payload:1, parts:{index:0, count:4, id:222}});
+        });
+    });
+    
 });
