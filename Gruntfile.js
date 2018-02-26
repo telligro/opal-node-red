@@ -336,6 +336,14 @@ module.exports = function(grunt) {
                         expand: true,
                         dest: 'public/red/images/'
                     },
+                    // ##opal @msivadas added location of telligro images
+                  {
+                      cwd: 'editor/images/telligro',
+                      src: '**',
+                      expand: true,
+                      dest: 'public/telligro/images/'
+                  },
+                  // ##opal/
                     {
                         cwd: 'editor/vendor',
                         src: [
