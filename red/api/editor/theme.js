@@ -48,13 +48,12 @@ function serveFile(app,baseUrl,file) {
     try {
         // ##opal: hack to allow file loading from relative path for editorTheme in settings.js
         if(file!=null) {
-            if(file.slice(0,1)!=path.separator){
-              var url = file;
+            if(!path.isAbsolute(file)){
               //console.log("Opal:: theme: Returning file:"+url);
-              return url;
+              return file;
             }
             else {
-              console.log("Opal:: theme: delimiter check failed");
+              console.log("Opal:: theme: got absolute path");
               return null;
             }
         }
