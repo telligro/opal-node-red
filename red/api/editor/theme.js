@@ -46,6 +46,19 @@ var themeApp;
 
 function serveFile(app,baseUrl,file) {
     try {
+        // ##opal: hack to allow file loading from relative path for editorTheme in settings.js
+        if(file!=null) {
+            if(!path.isAbsolute(file)){
+              //console.log("Opal:: theme: Returning file:"+url);
+              return file;
+            }
+            else {
+              console.log("Opal:: theme: got absolute path");
+              return null;
+            }
+        }
+        // ##opal/
+
         var stats = fs.statSync(file);
         var url = baseUrl+path.basename(file);
         //console.log(url,"->",file);

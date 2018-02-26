@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   version="1.1"
+   id="svg3352"
+   viewBox="0 0 6619.8316 1828.1968"
+   height="1950.0765"
+   width="7061.1538">
+  <defs
+     id="defs3354" />
+  <metadata
+     id="metadata3357">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     transform="translate(-650.83454,3433.2807)"
+     id="layer1">
+    <text
+       transform="scale(1.0356203,0.96560483)"
+       id="text3360"
+       y="-1993.0476"
+       x="523.19763"
+       style="font-style:normal;font-weight:normal;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;"
+       xml:space="preserve"><tspan
+         style="font-style:italic;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:1879.48876953px;line-height:1.25;font-family:Kanit;-inkscape-font-specification:'Kanit Bold Italic';fill:#ffffff;fill-opacity:1;"
+         y="-1993.0476"
+         x="523.19763"
+         id="tspan3362">Telligro</tspan></text>
+    <path
+       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none"
+       d="m 6732.4824,-3011.6438 -878.3157,-303.7575 -879.5508,303.7575 879.5508,-194.483 z m -477.1473,-204.8019 -401.1684,-216.835 -401.1684,216.835 401.1684,-139.3914 z m -401.1684,55.9314 -1325.0714,303.7575 1325.0714,-194.483 1325.0714,194.483 z"
+       id="path3436" />
+  </g>
+</svg>

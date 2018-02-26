@@ -51,9 +51,39 @@ module.exports = {
     editorTheme: {
         projects: {
             enabled: true
+        },
+
+        // ##opal: brand related additions
+        page: {
+          title: "Telligro Opal Flow Composer",
+
+        },
+        header: {
+          title: "Opal",
+          image: "telligro/images/Opal-48.png", // or null to remove image
+          url: "https://www.telligro.com" // optional url to make the header text/image a link to this url
+        },
+
+
+
+        menu: { // Hide unwanted menu items by id. see editor/js/main.js:loadEditor for complete list
+          "menu-item-help": {
+            label: "Opal Documentation",
+            url: "https://docs.telligro.com"
+          }
+        },
+
+
+        login: {
+          image: "red/images/Telligro-Opal-256.png" // a 256x256 image
+        },
+
+        logout: {
+          redirect: "https://www.telligro.com" // As of 0.17
         }
+        // ##opal/
     },
- 
+
     // The maximum number of messages nodes will buffer internally as part of their
     // operation. This applies across a range of nodes that operate on message sequences.
     //  defaults to no limit. A value of 0 also means no limit is applied.
