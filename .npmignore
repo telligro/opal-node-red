@@ -5,3 +5,6 @@
 .tern-project
 .travis.yml
 .git
+*.orig
+*.bak
+.vscode

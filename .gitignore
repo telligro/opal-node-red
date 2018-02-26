@@ -18,3 +18,5 @@ public
 locales/zz-ZZ
 nodes/core/locales/zz-ZZ
 samples
+*.orig
+*.bak
