@@ -29,6 +29,9 @@ module.exports = {
         var safeSettings = {
             httpNodeRoot: settings.httpNodeRoot||"/",
             version: settings.version,
+            // ##opal - Pass opalVersion param to editor
+            opalVersion: settings.opalVersion,
+            // ##opal
             user: req.user
         }
 
