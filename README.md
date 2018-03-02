@@ -9,7 +9,7 @@ Refer to  [opal-setup](https://github.com/telligro/opal-setup) project for getti
 
 ### Requirements
 **node**: v8.9.x LTS  
-**npm**: 5.5.1  
+**npm**: 5.x  
 **Git**: 1.8+
 
 **Notes**: 
@@ -64,6 +64,7 @@ The following nodes are available for OPAL
 * [opal-node-msexcel](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-msexcel)
 * [opal-node-selenium-webdriver](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-control-flow)
 * [opal-node-soap](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-control-flow)
+* [opal-node-pdfreader](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-pdfreader)
 ## Contributing
 Contact opensource@telligro.com
 ## Authors
