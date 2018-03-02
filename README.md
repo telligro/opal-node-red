@@ -1,6 +1,6 @@
 # OPAL Node-RED
 
-[![Build Status](https://travis-ci.org/telligro/opal-node-red.svg?branch=master)](https://travis-ci.org/telligro/opal-node-red) [![npm (scoped)](https://img.shields.io/npm/v/@telligro/opal-node-red.svg)](https://www.npmjs.com/package/@telligro/opal-node-red) [![license](https://img.shields.io/github/license/telligro/opal-setup.svg)](LICENSE)
+[![Build Status](https://travis-ci.org/telligro/opal-node-red.svg?branch=master)](https://travis-ci.org/telligro/opal-node-red) [![npm (scoped)](https://img.shields.io/npm/v/opal-node-red.svg)](https://www.npmjs.com/package/opal-node-red) [![license](https://img.shields.io/github/license/telligro/opal-setup.svg)](LICENSE)
 ## Getting started
 This readme is for setting up the development environment.
 Refer to  [opal-setup](https://github.com/telligro/opal-setup) project for getting started instructions.
@@ -9,7 +9,7 @@ Refer to  [opal-setup](https://github.com/telligro/opal-setup) project for getti
 
 ### Requirements
 **node**: v8.9.x LTS  
-**npm**: 5.5.1
+**npm**: 5.5.1  
 **Git**: 1.8+
 
 **Notes**: 
@@ -54,7 +54,7 @@ npm link
 * Assuming that the `opal-node-red` in the same working directory as `opal-nodes`
 ```sh
 cd <WORKING_DIR>/opal-node-red
-npm link @telligro/<NODE_NAME>
+npm link <NODE_NAME>
 ```
 The following nodes are available for OPAL
 * [opal-node-control-flow](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-control-flow)
@@ -65,7 +65,7 @@ The following nodes are available for OPAL
 * [opal-node-selenium-webdriver](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-control-flow)
 * [opal-node-soap](https://github.com/telligro/opal-nodes/tree/master/packages/opal-node-control-flow)
 ## Contributing
-Contact support@telligro.com
+Contact opensource@telligro.com
 ## Authors
 
 OPAL-Node-RED is a fork of Node-RED for the [OPAL Framework](https://www.telligro.com)
