@@ -1,6 +1,6 @@
 {
     "name": "opal-node-red",
-    "version": "0.4.5",
+    "version": "0.4.6",
     "description": "A node-red wrapper for RPA",
     "homepage": "https://github.com/telligro/opal-node-red",
     "license": "GPL-3.0",
@@ -14,7 +14,7 @@
         "test": "grunt",
         "build": "grunt build",
         "version": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0 && git add CHANGELOG.md && grunt release"
-     },
+    },
     "bin": {
         "node-red": "./red.js",
         "node-red-pi": "bin/node-red-pi"
