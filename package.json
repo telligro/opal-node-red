@@ -1,6 +1,6 @@
 {
-    "name": "@telligro/opal-node-red",
-    "version": "0.3.0",
+    "name": "opal-node-red",
+    "version": "0.4.5",
     "description": "A node-red wrapper for RPA",
     "homepage": "https://github.com/telligro/opal-node-red",
     "license": "GPL-3.0",
@@ -12,8 +12,9 @@
     "scripts": {
         "start": "node red.js",
         "test": "grunt",
-        "build": "grunt build"
-    },
+        "build": "grunt build",
+        "version": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0 && git add CHANGELOG.md && grunt release"
+     },
     "bin": {
         "node-red": "./red.js",
         "node-red-pi": "bin/node-red-pi"
@@ -68,14 +69,14 @@
         "node-red-node-twitter": "0.1.*",
         "nopt": "4.0.1",
         "oauth2orize": "1.11.0",
-        "@telligro/opal-node-control-flow": "~0.3.0",
-        "@telligro/opal-node-database": "~0.3.0",
-        "@telligro/opal-node-email": "~0.3.0",
-        "@telligro/opal-node-ftp": "~0.3.0",
-        "@telligro/opal-node-msexcel": "~0.4.0",
-        "@telligro/opal-node-pdfreader": "~0.3.0",
-        "@telligro/opal-node-soap": "~0.3.0",
-        "@telligro/opal-node-ui-web-browser": "~0.3.0",
+        "opal-node-control-flow": "~0.4.0",
+        "opal-node-database": "~0.4.0",
+        "opal-node-email": "~0.4.0",
+        "opal-node-ftp": "~0.4.0",
+        "opal-node-msexcel": "~0.4.0",
+        "opal-node-pdfreader": "~0.4.0",
+        "opal-node-soap": "~0.4.0",
+        "opal-node-ui-web-browser": "~0.4.0",
         "on-headers": "1.0.1",
         "passport": "0.4.0",
         "passport-http-bearer": "1.0.1",
