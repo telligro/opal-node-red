@@ -322,14 +322,33 @@
     }
 
     function showAbout() {
-        $.get('red/about', function(data) {
-            var aboutHeader = '<div style="text-align:center;">'+
-                                '<img width="50px" src="red/images/node-red-icon.svg" />'+
-                              '</div>';
+        // $.get('red/about', function(data) {
+        //     var aboutHeader = '<div style="text-align:center;">'+
+        //                         '<img width="50px" src="red/images/node-red-icon.svg" />'+
+        //                       '</div>';
+        //
+        //     RED.sidebar.info.set(aboutHeader+marked(data));
+        //     RED.sidebar.info.show();
+        // });
 
-            RED.sidebar.info.set(aboutHeader+marked(data));
+        // ##opal:  branding. add Opal related About info
+        $.get('telligro/about', function(data) {
+          var aboutHeader = '<div style="text-align:center;">'+
+                            '<img width="100px" src="telligro/images/Telligro-opal-256.svg" />'+
+                            '<p/> Telligro Opal: v'+ RED.settings.opalVersion +
+                            '</div>';
+          aboutHeader = aboutHeader+marked(data);
+          $.get('red/about', function(data) {
+            aboutHeader = aboutHeader+'<p/><p/><p/><div style="text-align:center;">'+
+                              '<img width="100px"  src="red/images/node-red-icon.svg" />'+
+                              '<p/> Node-RED: v'+ RED.settings.version +
+                              '</div>';
+            aboutHeader = aboutHeader+marked(data);
+            RED.sidebar.info.set(aboutHeader, "About Opal");
             RED.sidebar.info.show();
+          });
         });
+        // #opal/
     }
 
     function loadEditor() {
@@ -398,8 +417,19 @@
             href: RED.settings.theme("menu.menu-item-help.url","http://nodered.org/docs")
         });
         // ##opal - Display OPAL version number
-        menuOptions.push({ id: "menu-item-node-red-version", label: "Opal v" + RED.settings.opalVersion + "<br/> Node-RED v" + RED.settings.version, onselect: "core:show-about" });
+        // menuOptions.push({ id: "menu-item-node-red-version", label: "Opal v" + RED.settings.opalVersion + "<br/> Node-RED v" + RED.settings.version, onselect: "core:show-about" });
         // ##opal
+
+        // ##opal - Display OPAL version number
+        // menuOptions.push({ id: "menu-item-node-red-version", label: "Opal v" + RED.settings.opalVersion + "<br/> Node-RED v" + RED.settings.version, onselect: "core:show-about" });
+        // ##opal
+
+
+        // ##opal:  branding stuff
+        //menuOptions.push({id:"menu-item-node-red-version", label:"v"+RED.settings.version, onselect: "core:show-about" });
+        menuOptions.push({id:"menu-item-node-red-version", label:"About", onselect: "core:show-about" });
+        // ##opal/
+
 
         RED.view.init();
         RED.userSettings.init();

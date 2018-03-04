@@ -369,8 +369,12 @@ module.exports = function(grunt) {
                         flatten: true
                     },
                     {
-                        src: 'CHANGELOG.md',
+                        src: 'NODE-RED-CHANGELOG.md',
                         dest: 'public/red/about'
+                    },
+                    {
+                        src: 'CHANGELOG.md',
+                        dest: 'public/telligro/about'
                     }
                 ]
             },
