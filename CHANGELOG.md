@@ -1,3 +1,13 @@
+<a name="0.4.7"></a>
+## [0.4.7](https://github.com/telligro/opal-node-red/compare/v0.4.6...v0.4.7) (2018-03-04)
+
+
+### Features
+
+* **editor:** display About with Opal and Node Red changelogs ([#18](https://github.com/telligro/opal-node-red/issues/18)) ([640c7d2](https://github.com/telligro/opal-node-red/commit/640c7d2))
+
+
+
 <a name="0.4.6"></a>
 ## [0.4.6](https://github.com/telligro/opal-node-red/compare/v0.3.0...v0.4.6) (2018-03-02)
 
